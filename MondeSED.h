@@ -20,6 +20,8 @@ struct ParametresGlobaux {
     // Loi 5 (Psychisme)
     float TAUX_AUGMENTATION_ENNUI = 0.001f;
     float FACTEUR_ECHANGE_PSYCHIQUE = 0.1f;
+    // Loi 6 (Mémoire)
+    float K_M = 0.5f;
 };
 
 // Définition de la structure Cellule
@@ -31,6 +33,7 @@ struct Cellule {
     float seuil_critique = 0.0f;
     float score_survie = 0.0f;
     float charge_emotionnelle = 0.0f;
+    float memoire_energie_max = 0.0f; // Loi 6
     int horloge_interne = 0;
     int age = 0;
     bool est_vivante = false;
@@ -87,6 +90,7 @@ public:
     int getTailleX() const { return size_x; }
     int getTailleY() const { return size_y; }
     int getTailleZ() const { return size_z; }
+    const std::vector<Cellule>& getGrille() const { return grille; }
 
 private:
     int size_x, size_y, size_z;

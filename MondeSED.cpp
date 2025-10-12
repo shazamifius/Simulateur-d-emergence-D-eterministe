@@ -8,10 +8,11 @@
 #include <cmath>
 #include <fstream>
 #include <iomanip>
+#include <iostream>
 
 MondeSED::MondeSED(int sx, int sy, int sz) : size_x(sx), size_y(sy), size_z(sz) {
     grille.resize(size_x * size_y * size_z);
-    params = ParametresGlobaux(); // Initialize with default values
+    params = ParametresGlobaux();
 }
 
 int MondeSED::getIndex(int x, int y, int z) const {
@@ -52,11 +53,10 @@ void MondeSED::InitialiserMonde() {
 void MondeSED::ExporterEtatMonde(const std::string& nom_fichier) const {
     std::ofstream outfile(nom_fichier);
     if (!outfile.is_open()) {
-        // Handle error if needed
         return;
     }
 
-    outfile << "x,y,z,E,C,R,A\n";
+    outfile << "x,y,z,E,C,R,A,Memoire\n";
 
     for (int z = 0; z < size_z; ++z) {
         for (int y = 0; y < size_y; ++y) {
@@ -67,7 +67,8 @@ void MondeSED::ExporterEtatMonde(const std::string& nom_fichier) const {
                             << cell.reserve_energie << ","
                             << cell.charge_emotionnelle << ","
                             << cell.resistance_stress << ","
-                            << cell.age << "\n";
+                            << cell.age << ","
+                            << cell.memoire_energie_max << "\n";
                 }
             }
         }
@@ -79,6 +80,17 @@ void MondeSED::ExporterEtatMonde(const std::string& nom_fichier) const {
 void MondeSED::AppliquerLoiZero(int x, int y, int z) {
     Cellule& cell = getCellule(x, y, z);
     if (!cell.est_vivante) return;
+
+    float max_energie_voisin = 0.0f;
+    for (const auto& coords_voisin : GetCoordsVoisins(x, y, z)) {
+        const Cellule& voisin = getCellule(std::get<0>(coords_voisin), std::get<1>(coords_voisin), std::get<2>(coords_voisin));
+        if (voisin.reserve_energie > max_energie_voisin) {
+            max_energie_voisin = voisin.reserve_energie;
+        }
+    }
+    if (max_energie_voisin > cell.memoire_energie_max) {
+        cell.memoire_energie_max = max_energie_voisin;
+    }
 
     cell.reserve_energie -= 0.001f;
     cell.dette_besoin += 0.002f;
@@ -109,8 +121,6 @@ std::vector<std::tuple<int, int, int>> MondeSED::GetCoordsVoisins(int x, int y, 
     return voisins;
 }
 
-// ... (Implementations of AppliquerLoi* and Appliquer* actions using `params`)
-
 void MondeSED::AppliquerLoiMouvement(int x, int y, int z, const std::vector<Cellule>& read_grid) {
     const Cellule& source_cell = getCellule(x,y,z,read_grid);
     if (!source_cell.est_vivante) return;
@@ -120,10 +130,20 @@ void MondeSED::AppliquerLoiMouvement(int x, int y, int z, const std::vector<Cell
     float max_score = -std::numeric_limits<float>::infinity();
     bool cible_trouvee = false;
 
+    float bonus_memoire = 0.0f;
+    // Correctly avoid division by zero for new cells
+    if (source_cell.age + 1 > 0) {
+        bonus_memoire = params.K_M * (source_cell.memoire_energie_max / (source_cell.age + 1));
+    }
+
     for (const auto& coords_voisin : voisins) {
         const Cellule& voisin_cell = getCellule(std::get<0>(coords_voisin), std::get<1>(coords_voisin), std::get<2>(coords_voisin), read_grid);
         if (voisin_cell.reserve_energie <= 0) {
-            float score = params.K_E * voisin_cell.reserve_energie + params.K_D * source_cell.dette_besoin - params.K_C * source_cell.charge_emotionnelle;
+            // Correctly use the neighbor's energy for the score calculation
+            float score = (params.K_E * voisin_cell.reserve_energie)
+                        + (params.K_D * source_cell.dette_besoin)
+                        - (params.K_C * source_cell.charge_emotionnelle)
+                        + bonus_memoire;
             if (score > max_score) {
                 max_score = score;
                 meilleure_cible = coords_voisin;
@@ -136,6 +156,14 @@ void MondeSED::AppliquerLoiMouvement(int x, int y, int z, const std::vector<Cell
         #pragma omp critical
         mouvements_souhaites.push_back({std::make_tuple(x, y, z), meilleure_cible, source_cell.dette_besoin});
     }
+}
+
+float deterministic_mutation(int x, int y, int z, int age) {
+    unsigned int hash = (x * 18397) + (y * 20441) + (z * 22543) + (age * 24671);
+    int decision = hash % 3;
+    if (decision == 0) return 0.01f;
+    if (decision == 1) return -0.01f;
+    return 0.0f;
 }
 
 void MondeSED::AppliquerMouvements() {
@@ -155,14 +183,6 @@ void MondeSED::AppliquerMouvements() {
         source_cell.est_vivante = false;
     }
     mouvements_souhaites.clear();
-}
-
-float deterministic_mutation(int x, int y, int z, int age) {
-    unsigned int hash = (x * 18397) + (y * 20441) + (z * 22543) + (age * 24671);
-    int decision = hash % 3;
-    if (decision == 0) return 0.01f;
-    if (decision == 1) return -0.01f;
-    return 0.0f;
 }
 
 void MondeSED::AppliquerLoiDivision(int x, int y, int z, const std::vector<Cellule>& read_grid) {
@@ -284,28 +304,27 @@ void MondeSED::AvancerTemps() {
     echanges_energie_souhaites.clear();
     echanges_psychiques_souhaites.clear();
 
-    #pragma omp parallel for collapse(3)
-    for (int z = 0; z < size_z; ++z) {
-        for (int y = 0; y < size_y; ++y) {
-            for (int x = 0; x < size_x; ++x) {
-                AppliquerLoiMouvement(x, y, z, read_grid);
-                AppliquerLoiDivision(x, y, z, read_grid);
-                AppliquerLoiEchange(x, y, z, read_grid);
-                AppliquerLoiPsychisme(x, y, z, read_grid);
-            }
-        }
+    #pragma omp parallel for
+    for (int i = 0; i < size_x * size_y * size_z; ++i) {
+        int x = i % size_x;
+        int y = (i / size_x) % size_y;
+        int z = i / (size_x * size_y);
+        AppliquerLoiMouvement(x, y, z, read_grid);
+        AppliquerLoiDivision(x, y, z, read_grid);
+        AppliquerLoiEchange(x, y, z, read_grid);
+        AppliquerLoiPsychisme(x, y, z, read_grid);
     }
+
     AppliquerMouvements();
     AppliquerDivisions();
     AppliquerEchangesEnergie();
     AppliquerEchangesPsychiques();
 
-    #pragma omp parallel for collapse(3)
-    for (int z = 0; z < size_z; ++z) {
-        for (int y = 0; y < size_y; ++y) {
-            for (int x = 0; x < size_x; ++x) {
-                AppliquerLoiZero(x, y, z);
-            }
-        }
+    #pragma omp parallel for
+    for (int i = 0; i < size_x * size_y * size_z; ++i) {
+        int x = i % size_x;
+        int y = (i / size_x) % size_y;
+        int z = i / (size_x * size_y);
+        AppliquerLoiZero(x, y, z);
     }
 }
