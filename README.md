@@ -1,7 +1,6 @@
-
 ## 🔬 Projet SED : Simulateur d'Émergence Déterministe
 
-Ce projet est une initiative de recherche-création visant à prouver que la complexité de la vie, de la psyché, et de la stabilité peut **émerger de lois mathématiques déterministes et traçables**. Le **SED** est la construction d'un univers où l'existence d'organismes stables est une nécessité mathématique.
+Ce projet est une initiative personnelle de recherche-création visant à prouver que la complexité de la vie, de la psyché, et de la stabilité peut **émerger de lois mathématiques déterministes et traçables**. Le **SED** est la construction d'un univers où l'existence d'organismes stables est une nécessité mathématique.
 
 ---
 
@@ -9,62 +8,56 @@ Ce projet est une initiative de recherche-création visant à prouver que la com
 
 ### A. L'Ambition Fondamentale
 
-Notre objectif est de créer un **outil universel de simulation** capable de générer des entités numériques qui possèdent une "âme" faite de code. Nous cherchons à :
+Mon objectif est de créer un **outil de simulation** capable de générer des entités numériques qui possèdent une "âme" faite de code. Je cherche à :
 
 1.  **Prouver le Déterminisme :** Démontrer que les comportements complexes (la survie, le stress, l'ennui) sont le **résultat unique et prévisible** de conditions initiales (la morphologie) et d'une succession d'événements (l'histoire), sans aucune variable aléatoire.
 2.  **Créer la Vie Stable :** Construire des lois si fondamentales qu'elles garantissent la création d'organismes **multicellulaires stables** qui s'auto-entretiennent et se protègent du chaos environnant.
 
 ### B. Influence Clé : La Règle et l'Émergence
 
-Notre fondation conceptuelle se base sur l'idée de la **simplicité générant la complexité**.
+Ma fondation conceptuelle se base sur l'idée de la **simplicité générant la complexité**.
 
 | Influence | Concept Appliqué au SED |
 | :--- | :--- |
-| **John Horton Conway (Jeu de la Vie)** | Le SED est un **Automate Cellulaire 3D**. Il utilise des règles de transition simples, appliquées localement à chaque Voxel, pour générer des structures globales complexes (les entités stables). |
-| **Philosophie des Systèmes (Systèmes Auto-Organisés)** | L'**intelligence** et la **stabilité** ne sont pas codées directement. Elles sont des propriétés qui **émergent** naturellement de l'interaction des milliards de cellules selon nos lois. |
+| **John Horton Conway (Jeu de la Vie)** | Le SED est un **Automate Cellulaire 3D**. Il utilise des règles de transition simples, appliquées localement à chaque Voxel, pour générer des structures globales complexes. |
+| **Philosophie des Systèmes (Systèmes Auto-Organisés)** | L'**intelligence** et la **stabilité** ne sont pas codées directement. Elles sont des propriétés qui **émergent** naturellement de l'interaction des cellules selon les lois définies. |
 
 ---
 
-## 2. EXIGENCES TECHNIQUES & OPTIMISATION (Phase I : Le Moteur C++)
+## 2. ARCHITECTURE TECHNIQUE
 
-Le moteur de calcul (la "Soupe Primordiale") est la priorité absolue et sera séparé du moteur graphique.
+Le projet est centré sur un moteur de simulation C++ performant, avec une visualisation simple et efficace en Python.
 
-### A. Architecture du Moteur
+### A. Moteur de Simulation (C++)
 
-* **Langage :** **C++ Pur.** C'est le seul choix pour garantir l'**optimisation en béton** nécessaire à la gestion de la grande matrice 3D et des calculs matriciels complexes.
-* **Structure du Monde :** **Voxel Grid 3D (Matrice 3D).** L'univers est un espace discret où chaque position est une case unique. **La taille de la grille (Volume)** sera définie et modulée par la suite en fonction des capacités optimales de la machine, sans valeur fixe initialement.
-* **Performance :** L'algorithme de transition doit être conçu pour le **parallélisme** (multi-threading) afin d'utiliser la puissance maximale du processeur.
+*   **Langage :** **C++ Pur.** C'est le choix idéal pour garantir l'optimisation nécessaire à la gestion d'une grande matrice 3D et des calculs intensifs.
+*   **Structure du Monde :** **Voxel Grid 3D.** L'univers est un espace discret où chaque position est une case unique.
+*   **Performance :** L'algorithme de transition est conçu pour le **parallélisme** (multi-threading avec OpenMP) afin d'utiliser la puissance maximale du processeur.
 
-### B. Définition Mathématique de la `Cellule`
+### B. Définition de la `Cellule`
 
-L'état de chaque Cellule est défini par sept paramètres. Ces variables sont le cœur de nos lois de transition.
+L'état de chaque Cellule est défini par un ensemble de variables. Ces paramètres sont le cœur des lois de transition et sont directement représentés dans le code pour une lisibilité maximale.
 
-| Variable | Type | Rôle Fondamental dans le Système | Catégorie |
-| :--- | :--- | :--- | :--- |
-| **$E$ (Énergie)** | `float` | La ressource vitale. L'absence d'Énergie mène à la Mort. | **Dynamique** |
-| **$D$ (Dette Besoin)** | `float` | Pression des besoins fondamentaux (Faim, Repos). Pilote le déplacement. | **Dynamique** |
-| **$C$ (Charge Émotionnelle)** | `float` | Niveau d'activation (Stress/Peur). Si trop haut, mène au comportement erratique ou à l'autodestruction. | **Dynamique** |
-| **$L$ (Dette Stimulus)** | `float` | Niveau d'ennui. Force la cellule à chercher l'interaction (la "communication"). | **Dynamique** |
-| **$A$ (Âge)** | `int` | Compteur de cycles. Utilise l'âge pour affecter l'efficacité des autres paramètres (affaiblissement). | **Dynamique** |
-| **$R$ (Résistance Innée)** | `float` | **Constante de Naissance.** Mesure l'influence du voisinage sur la cellule (le facteur "Rebelle"). | **Constante** |
-| **$S_c$ (Seuil Critique)** | `float` | **Constante de Naissance.** Tolérance maximale au stress. Définit la vulnérabilité psychique. | **Constante** |
+| Variable | Symbole | Type | Rôle Fondamental dans le Système | Catégorie |
+| :--- | :--- | :--- | :--- | :--- |
+| **Énergie** | `E` | `float` | La ressource vitale. L'absence d'Énergie mène à la Mort. | **Dynamique** |
+| **Dette Besoin** | `D` | `float` | Pression des besoins (Faim, Repos). Pilote le déplacement. | **Dynamique** |
+| **Charge Émotionnelle** | `C` | `float` | Niveau de stress. Si trop haut, mène à la mort psychique. | **Dynamique** |
+| **Dette Stimulus** | `L` | `float` | Niveau d'ennui. Force la cellule à chercher l'interaction. | **Dynamique** |
+| **Âge** | `A` | `int` | Compteur de cycles. Affecte d'autres paramètres (ex: mémoire). | **Dynamique** |
+| **Mémoire Énergie**| `M` | `float` | Mémorise la plus haute énergie vue dans le voisinage. | **Dynamique** |
+| **Résistance Innée** | `R` | `float` | **Constante de Naissance.** Facteur "Rebelle", influence les interactions. | **Constante** |
+| **Seuil Critique** | `Sc` | `float` | **Constante de Naissance.** Tolérance maximale au stress. | **Constante** |
+
 
 ---
 
-## 3. PROJECTION FINALE : L'Œuvre Scientifique
+## 3. VISUALISATION (Python)
 
-### A. Le Rendu (Unreal Engine)
+Pour visualiser les résultats de la simulation, un script Python est fourni. Il lit les fichiers de données `.csv` générés par le simulateur et crée une animation 3D au format GIF.
 
-Le moteur Unreal Engine sera utilisé pour la **visualisation brute** des données C++.
-
-* **Esthétique Voxel :** Le rendu sera basé sur la **géométrie discrète (Voxel)** de la grille pour respecter la nature mathématique du système.
-* **Visualisation de la Psyché :** Les Voxels ne seront pas lisses (*smooth shading*). La couleur, la luminosité et les effets d'échelles de chaque Voxel seront directement pilotés par les valeurs de $C$ (Charge Émotionnelle) et $E$ (Énergie) pour rendre l'**état psychique instantané** visible.
-
-### B. L'Héritage
-
-Le produit final est une **simulation interactive** qui permet à l'utilisateur de modifier les Constantes $R$ et $S_c$ (les facteurs morphologiques de naissance) et d'observer en temps réel comment l'évolution de la **Soupe Primordiale** crée une espèce stable différente à chaque fois.
-
-Ce projet est une quête de la **Loi de la Vie** dans sa forme mathématique la plus pure.
+*   **Esthétique Voxel :** Le rendu respecte la nature discrète de la grille.
+*   **Visualisation de l'État :** La couleur et la taille des voxels dans le GIF sont directement liées aux états internes des cellules (Énergie et Charge Émotionnelle), rendant leur "psyché" visible.
 
 ---
 
@@ -74,56 +67,35 @@ Ce projet utilise un `Makefile` pour simplifier la compilation et l'exécution.
 
 ### A. Prérequis
 
-- Un compilateur C++ compatible avec C++14 (par exemple, `g++`).
+- Un compilateur C++ compatible C++14 (ex: `g++`).
 - L'outil `make`.
 - OpenMP pour la parallélisation.
 - Python 3 et les bibliothèques `pandas`, `matplotlib`, `natsort`, `imageio`.
 
 ### B. Compilation
 
-Pour compiler le simulateur, ouvrez un terminal à la racine du projet et exécutez simplement :
-
+Pour compiler le simulateur, ouvrez un terminal à la racine du projet et exécutez :
 ```bash
 make
 ```
-
 Cela créera un exécutable nommé `sed_simulator`.
 
 ### C. Lancer une Simulation
 
 L'exécutable prend les arguments suivants en ligne de commande :
-
 ```
 Usage: ./sed_simulator <size_x> <size_y> <size_z> <cycles> <initial_density> <output_basename>
 ```
-
-- **`<size_x> <size_y> <size_z>`**: Les dimensions de la grille de simulation.
-- **`<cycles>`**: Le nombre de cycles à simuler.
-- **`<initial_density>`**: La probabilité (entre 0.0 et 1.0) qu'une cellule soit vivante au démarrage.
-- **`<output_basename>`**: Le nom de base pour les fichiers de sortie CSV.
-
-**Exemple :** Pour lancer une simulation de 30x30x30 pendant 100 cycles avec 15% de cellules initiales et sauvegarder les résultats avec le préfixe "sim1" :
-
+**Exemple :**
 ```bash
 ./sed_simulator 30 30 30 100 0.15 sim1
 ```
-
 La simulation générera des fichiers `sim1_cycle_10.csv`, `sim1_cycle_20.csv`, etc.
 
 ### D. Générer une Visualisation Animée
 
-Après avoir lancé une simulation, vous pouvez créer un GIF animé de l'évolution du monde.
-
-Utilisez le script `visualiseur_3D.py` en lui passant le nom de base que vous avez utilisé pour la simulation :
-
-```bash
-python3 visualiseur_3D.py <output_basename>
-```
-
-**Exemple :** Pour visualiser la simulation "sim1" de l'exemple précédent :
-
+Utilisez le script `visualiseur_3D.py` en lui passant le nom de base de votre simulation :
 ```bash
 python3 visualiseur_3D.py sim1
 ```
-
 Le script créera un fichier `sim1_animation.gif` dans un nouveau dossier `visualisations/`.

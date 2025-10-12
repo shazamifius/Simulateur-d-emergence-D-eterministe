@@ -26,19 +26,21 @@ struct ParametresGlobaux {
     int intervalle_export = 10;
 };
 
-// Définition de la structure Cellule
+// Définition de la structure Cellule (alignée avec la documentation)
 struct Cellule {
-    float reserve_energie = 0.0f;
-    float dette_besoin = 0.0f;
-    float dette_stimulus = 0.0f;
-    float resistance_stress = 0.0f;
-    float seuil_critique = 0.0f;
-    float score_survie = 0.0f;
-    float charge_emotionnelle = 0.0f;
-    float memoire_energie_max = 0.0f; // Loi 6
-    int horloge_interne = 0;
-    int age = 0;
-    bool est_vivante = false;
+    // --- Constantes de Naissance (Morphologie) ---
+    float R = 0.0f;  // Résistance Innée
+    float Sc = 0.0f; // Seuil Critique de stress
+
+    // --- Variables Dynamiques (État) ---
+    float E = 0.0f;  // Énergie
+    float D = 0.0f;  // Dette de Besoin (faim, etc.)
+    float C = 0.0f;  // Charge Émotionnelle (stress)
+    float L = 0.0f;  // Dette de Stimulus (ennui)
+    float M = 0.0f;  // Mémoire de la plus haute énergie voisine (Loi 6)
+    int A = 0;       // Âge en cycles
+
+    bool is_alive = false;
 };
 
 // --- Deferred Action Structs ---
