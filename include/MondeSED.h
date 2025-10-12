@@ -71,9 +71,13 @@ class MondeSED {
 public:
     MondeSED(int size_x, int size_y, int size_z);
     void InitialiserMonde(float initial_density = 0.5f); // Default density
-    void AvancerTemps(const std::string& output_basename);
+    void AvancerTemps();
     void ExporterEtatMonde(const std::string& nom_de_base) const;
 
+    // Accesseur public pour la grille (lecture seule) pour la visualisation
+    const std::vector<Cellule>& getGrille() const;
+
+    // Paramètres modifiables de la simulation
     ParametresGlobaux params;
 
     void AppliquerLoiZero(int x, int y, int z);
