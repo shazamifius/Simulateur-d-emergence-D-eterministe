@@ -83,3 +83,15 @@ Ce document détaille l'intention philosophique et la formulation mathématique 
 *   **Leviers de Contrôle (`ParametresGlobaux`) :**
     *   `TAUX_AUGMENTATION_ENNUI` : La vitesse à laquelle une cellule s'ennuie.
     *   `FACTEUR_ECHANGE_PSYCHIQUE` : L'intensité du stress et du soulagement générés par une interaction.
+
+---
+
+### Loi 6 : Mémorisation et Mouvement Intentionnel
+
+*   **Intention :** Doter les cellules d'une forme primitive de mémoire, leur permettant de baser leurs décisions de mouvement non seulement sur l'état actuel, mais aussi sur l'expérience passée. Cela transforme le mouvement réactif en une quête intentionnelle.
+*   **Règle Déterministe :**
+    1.  **Mémorisation :** Au début de chaque cycle, une cellule scanne ses voisins et met à jour sa `memoire_energie_max` si elle trouve une énergie voisine supérieure à sa mémoire actuelle.
+    2.  **Mouvement Intentionnel :** Le Score d'Attractivité ($S_A$) est modifié pour inclure un terme de mémoire qui décroît avec l'âge :
+        *   `S_A = (K_E * E_voisin) + (K_D * D_cellule) - (K_C * C_cellule) + (K_M * (memoire_energie_max / (age + 1)))`
+*   **Leviers de Contrôle (`ParametresGlobaux`) :**
+    *   `K_M` : Le poids de l'influence de la mémoire sur la décision de mouvement.
