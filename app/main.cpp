@@ -58,7 +58,15 @@ int main(int argc, char* argv[]) {
 
         std::cout << "\nDebut de la simulation..." << std::endl;
         for (int i = 0; i < cycles; ++i) {
-            monde.AvancerTemps(output_basename); // Pass basename for export
+            monde.AvancerTemps(); // La bibliothèque avance d'un pas
+
+            // La logique d'export est maintenant gérée par l'application
+            if (monde.params.intervalle_export > 0 && (i + 1) % monde.params.intervalle_export == 0) {
+                std::cout << "Exporting state at cycle " << i + 1 << "..." << std::endl;
+                monde.ExporterEtatMonde(output_basename);
+            }
+
+            // Log de progression
             if ((i + 1) % 10 == 0 || i == cycles - 1) {
                 std::cout << "Cycle " << i + 1 << "/" << cycles << " termine." << std::endl;
             }

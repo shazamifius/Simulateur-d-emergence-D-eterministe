@@ -1,44 +1,62 @@
-# Makefile for the SED Simulator project
+# Makefile for the SED Simulator project (Refactored for Library Structure)
 
 # --- Variables ---
 # Compiler
 CXX = g++
 
-# Compiler flags:
-# -std=c++14: Use the C++14 standard
-# -Wall: Enable all warnings
-# -O3: Maximum optimization level
-# -fopenmp: Enable OpenMP for parallelization
-CXXFLAGS = -std=c++14 -Wall -O3 -fopenmp
+# Directories
+APP_DIR = app
+SRC_DIR = src
+INCLUDE_DIR = include
+BUILD_DIR = build
+LIB_DIR = lib
 
-# Linker flags:
-# -fopenmp: Link against the OpenMP library
+# Compiler flags
+# -I<dir>: Tell the compiler where to find header files
+CXXFLAGS = -std=c++14 -Wall -O3 -fopenmp -I$(INCLUDE_DIR)
+
+# Linker flags
 LDFLAGS = -fopenmp
 
-# Executable name
-TARGET = sed_simulator
+# --- Library ---
+LIB_NAME = sed
+LIB_TARGET = $(LIB_DIR)/lib$(LIB_NAME).a
+LIB_SRCS = $(SRC_DIR)/MondeSED.cpp
+LIB_OBJS = $(BUILD_DIR)/MondeSED.o
 
-# Source files
-SRCS = main.cpp MondeSED.cpp
-
-# Object files (derived from source files)
-OBJS = $(SRCS:.cpp=.o)
+# --- Application ---
+APP_NAME = sed_simulator
+APP_TARGET = $(APP_NAME)
+APP_SRCS = $(APP_DIR)/main.cpp
+APP_OBJS = $(BUILD_DIR)/main.o
 
 # --- Targets ---
 
 # Default target: builds the executable
-all: $(TARGET)
+all: $(APP_TARGET)
 
 # Rule to link the final executable
-$(TARGET): $(OBJS)
+$(APP_TARGET): $(APP_OBJS) $(LIB_TARGET)
 	@echo "Linking executable: $@"
-	$(CXX) $(LDFLAGS) -o $@ $(OBJS)
-	@echo "Build complete. Executable is '$(TARGET)'."
+	$(CXX) $(LDFLAGS) -o $@ $(APP_OBJS) -L$(LIB_DIR) -l$(LIB_NAME)
+	@echo "Build complete. Executable is '$(APP_TARGET)'."
 
-# Rule to compile .cpp files into .o files
-# Depends on the corresponding .cpp file and the main header
-%.o: %.cpp MondeSED.h
-	@echo "Compiling: $<"
+# Rule to create the static library from its object files
+$(LIB_TARGET): $(LIB_OBJS)
+	@echo "Archiving static library: $@"
+	@mkdir -p $(LIB_DIR)
+	ar rcs $@ $(LIB_OBJS)
+
+# Rule to compile the application's object file
+$(APP_OBJS): $(APP_SRCS)
+	@echo "Compiling application: $<"
+	@mkdir -p $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+# Rule to compile the library's object file
+$(LIB_OBJS): $(LIB_SRCS)
+	@echo "Compiling library: $<"
+	@mkdir -p $(BUILD_DIR)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 # Phony targets do not represent files
@@ -47,18 +65,19 @@ $(TARGET): $(OBJS)
 # Target to clean up the directory
 clean:
 	@echo "Cleaning up build artifacts..."
-	rm -f $(TARGET) $(OBJS) *.o
+	rm -f $(APP_TARGET) $(APP_OBJS) $(LIB_OBJS)
+	rm -rf $(BUILD_DIR) $(LIB_DIR)
 	@echo "Cleanup complete."
 
 # Target to run a default simulation for quick testing
 run: all
 	@echo "Running a default simulation (16x16x16, 50 cycles, 10% density)..."
-	./$(TARGET) 16 16 16 50 0.1 default_sim
+	./$(APP_TARGET) 16 16 16 50 0.1 default_sim
 
 # Target to display help
 help:
 	@echo "Available targets:"
 	@echo "  all     - (Default) Compiles the project."
 	@echo "  run     - Compiles and runs a default simulation."
-	@echo "  clean   - Removes all compiled files."
+	@echo "  clean   - Removes all compiled files and the library."
 	@echo "  help    - Displays this help message."

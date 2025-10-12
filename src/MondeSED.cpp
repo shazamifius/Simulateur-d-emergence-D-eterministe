@@ -295,7 +295,7 @@ void MondeSED::AppliquerEchangesPsychiques() {
     echanges_psychiques_souhaites.clear();
 }
 
-void MondeSED::AvancerTemps(const std::string& output_basename) {
+void MondeSED::AvancerTemps() {
     cycle_actuel++;
 
     const std::vector<Cellule> read_grid = grille;
@@ -331,7 +331,8 @@ void MondeSED::AvancerTemps(const std::string& output_basename) {
         }
     }
 
-    if (params.intervalle_export > 0 && cycle_actuel % params.intervalle_export == 0) {
-        ExporterEtatMonde(output_basename);
-    }
+}
+
+const std::vector<Cellule>& MondeSED::getGrille() const {
+    return grille;
 }
