@@ -9,7 +9,7 @@
 #include <fstream>
 #include <iomanip>
 
-MondeSED::MondeSED(int sx, int sy, int sz) : size_x(sx), size_y(sy), size_z(sz) {
+MondeSED::MondeSED(int sx, int sy, int sz) : size_x(sx), size_y(sy), size_z(sz), cycle_actuel(0) {
     grille.resize(size_x * size_y * size_z);
     params = ParametresGlobaux();
 }
@@ -49,7 +49,8 @@ void MondeSED::InitialiserMonde() {
     }
 }
 
-void MondeSED::ExporterEtatMonde(const std::string& nom_fichier) const {
+void MondeSED::ExporterEtatMonde(const std::string& nom_de_base) const {
+    std::string nom_fichier = nom_de_base + "_cycle_" + std::to_string(cycle_actuel) + ".csv";
     std::ofstream outfile(nom_fichier);
     if (!outfile.is_open()) {
         return;
@@ -297,6 +298,8 @@ void MondeSED::AppliquerEchangesPsychiques() {
 }
 
 void MondeSED::AvancerTemps() {
+    cycle_actuel++;
+
     const std::vector<Cellule> read_grid = grille;
 
     mouvements_souhaites.clear();
@@ -328,5 +331,9 @@ void MondeSED::AvancerTemps() {
                 AppliquerLoiZero(x, y, z);
             }
         }
+    }
+
+    if (params.intervalle_export > 0 && cycle_actuel % params.intervalle_export == 0) {
+        ExporterEtatMonde("simulation");
     }
 }

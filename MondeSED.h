@@ -22,6 +22,8 @@ struct ParametresGlobaux {
     float FACTEUR_ECHANGE_PSYCHIQUE = 0.1f;
     // Loi 6 (Mémoire)
     float K_M = 0.5f;
+    // Export
+    int intervalle_export = 10;
 };
 
 // Définition de la structure Cellule
@@ -70,7 +72,7 @@ public:
     MondeSED(int size_x, int size_y, int size_z);
     void InitialiserMonde();
     void AvancerTemps();
-    void ExporterEtatMonde(const std::string& nom_fichier) const;
+    void ExporterEtatMonde(const std::string& nom_de_base) const;
 
     ParametresGlobaux params;
 
@@ -93,6 +95,7 @@ public:
 
 private:
     int size_x, size_y, size_z;
+    int cycle_actuel = 0;
     std::vector<Cellule> grille;
     std::vector<MouvementSouhaite> mouvements_souhaites;
     std::vector<DivisionSouhaitee> divisions_souhaitees;
