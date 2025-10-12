@@ -2,16 +2,17 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "build",
+            "label": "Build SED with g++",
             "type": "shell",
-            "command": "make",
+            "command": "g++ -std=c++14 -Wall -fopenmp -o sed_simulator main.cpp MondeSED.cpp",
             "group": {
                 "kind": "build",
                 "isDefault": true
             },
             "problemMatcher": [
                 "$gcc"
-            ]
+            ],
+            "detail": "Compiles the project using g++ directly, for Windows compatibility without make."
         }
     ]
 }
