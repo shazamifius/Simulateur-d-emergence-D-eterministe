@@ -8,6 +8,7 @@
 #include <cmath>
 #include <fstream>
 #include <iomanip>
+#include <iostream>
 
 MondeSED::MondeSED(int sx, int sy, int sz) : size_x(sx), size_y(sy), size_z(sz), cycle_actuel(0) {
     grille.resize(size_x * size_y * size_z);
@@ -82,9 +83,6 @@ void MondeSED::AppliquerLoiZero(int x, int y, int z) {
     if (!cell.est_vivante) return;
 
     float max_energie_voisin = 0.0f;
-    // The read for memory update must be on the grid state *before* any changes in this cycle.
-    // However, since LoiZero is the last step, reading the live grid is acceptable here
-    // as it reflects the state after all exchanges.
     for (const auto& coords_voisin : GetCoordsVoisins(x, y, z)) {
         const Cellule& voisin = getCellule(std::get<0>(coords_voisin), std::get<1>(coords_voisin), std::get<2>(coords_voisin));
         if (voisin.reserve_energie > max_energie_voisin) {
