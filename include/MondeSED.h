@@ -79,6 +79,9 @@ public:
     // Accesseur public pour la grille (lecture seule) pour la visualisation
     const std::vector<Cellule>& getGrille() const;
 
+    // Méthode pour charger les paramètres depuis un fichier
+    bool ChargerParametresDepuisFichier(const std::string& nom_fichier);
+
     // Paramètres modifiables de la simulation
     ParametresGlobaux params;
 

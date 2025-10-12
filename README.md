@@ -63,39 +63,50 @@ Pour visualiser les résultats de la simulation, un script Python est fourni. Il
 
 ## 4. COMMENT L'UTILISER
 
-Ce projet utilise un `Makefile` pour simplifier la compilation et l'exécution.
+Ce projet peut être utilisé de deux manières : soit en ligne de commande pour des simulations rapides, soit via l'interface graphique pour une exploration scientifique détaillée.
 
-### A. Prérequis
+### A. Prérequis Communs
 
 - Un compilateur C++ compatible C++14 (ex: `g++`).
 - L'outil `make`.
 - OpenMP pour la parallélisation.
-- Python 3 et les bibliothèques `pandas`, `matplotlib`, `natsort`, `imageio`.
+- Python 3 et les bibliothèques `pandas`, `matplotlib`, `natsort`, `imageio`, `dearpygui`.
 
-### B. Compilation
+### B. Compilation du Moteur C++
 
-Pour compiler le simulateur, ouvrez un terminal à la racine du projet et exécutez :
+Quel que soit le mode d'utilisation, le moteur de simulation C++ doit d'abord être compilé. Ouvrez un terminal à la racine du projet et exécutez :
 ```bash
 make
 ```
-Cela créera un exécutable nommé `sed_simulator`.
+Cela créera un exécutable nommé `sed_simulator`, qui est utilisé par les deux méthodes ci-dessous.
 
-### C. Lancer une Simulation
+### C. Méthode 1: Interface Scientifique (Recommandée)
 
-L'exécutable prend les arguments suivants en ligne de commande :
-```
-Usage: ./sed_simulator <size_x> <size_y> <size_z> <cycles> <initial_density> <output_basename>
-```
-**Exemple :**
-```bash
-./sed_simulator 30 30 30 100 0.15 sim1
-```
-La simulation générera des fichiers `sim1_cycle_10.csv`, `sim1_cycle_20.csv`, etc.
+Pour une exploration interactive des paramètres.
 
-### D. Générer une Visualisation Animée
+1.  **Lancer l'interface :**
+    ```bash
+    python3 interface_scientifique.py
+    ```
+2.  **Utilisation :**
+    - Ajustez les sliders et les champs de saisie pour configurer votre simulation.
+    - Cliquez sur "Lancer la Simulation et Visualiser".
+    - L'interface se chargera d'exécuter le simulateur, de générer le GIF, et d'afficher un aperçu. Le GIF final est sauvegardé dans le dossier `visualisations/`.
 
-Utilisez le script `visualiseur_3D.py` en lui passant le nom de base de votre simulation :
-```bash
-python3 visualiseur_3D.py sim1
-```
-Le script créera un fichier `sim1_animation.gif` dans un nouveau dossier `visualisations/`.
+### D. Méthode 2: Ligne de Commande (Avancé)
+
+Pour des exécutions rapides avec les paramètres par défaut.
+
+1.  **Lancer une Simulation :**
+    ```
+    Usage: ./sed_simulator <size_x> <size_y> <size_z> <cycles> <initial_density> <output_basename> [config_file]
+    ```
+    **Exemple :**
+    ```bash
+    ./sed_simulator 30 30 30 100 0.15 sim1
+    ```
+2.  **Générer une Visualisation Animée :**
+    ```bash
+    python3 visualiseur_3D.py sim1
+    ```
+    Le script créera un fichier `sim1_animation.gif` dans le dossier `visualisations/`.

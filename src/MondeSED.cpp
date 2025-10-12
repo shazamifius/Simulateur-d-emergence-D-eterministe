@@ -344,3 +344,47 @@ void MondeSED::AvancerTemps() {
 const std::vector<Cellule>& MondeSED::getGrille() const {
     return grille;
 }
+
+// --- Implementation for loading parameters from a file ---
+bool MondeSED::ChargerParametresDepuisFichier(const std::string& nom_fichier) {
+    std::ifstream fichier_params(nom_fichier);
+    if (!fichier_params.is_open()) {
+        std::cerr << "Avertissement: Impossible d'ouvrir le fichier de paramètres '" << nom_fichier << "'. Utilisation des valeurs par défaut." << std::endl;
+        return false;
+    }
+
+    std::string ligne;
+    std::cout << "Chargement des paramètres depuis '" << nom_fichier << "'..." << std::endl;
+    while (std::getline(fichier_params, ligne)) {
+        // Ignore empty lines or comments
+        if (ligne.empty() || ligne[0] == '#') {
+            continue;
+        }
+
+        std::istringstream iss(ligne);
+        std::string cle;
+        if (std::getline(iss, cle, '=')) {
+            std::string valeur_str;
+            if (std::getline(iss, valeur_str)) {
+                try {
+                    float valeur = std::stof(valeur_str);
+                    if (cle == "K_E") params.K_E = valeur;
+                    else if (cle == "K_D") params.K_D = valeur;
+                    else if (cle == "K_C") params.K_C = valeur;
+                    else if (cle == "SEUIL_ENERGIE_DIVISION") params.SEUIL_ENERGIE_DIVISION = valeur;
+                    else if (cle == "FACTEUR_ECHANGE_ENERGIE") params.FACTEUR_ECHANGE_ENERGIE = valeur;
+                    else if (cle == "SEUIL_DIFFERENCE_ENERGIE") params.SEUIL_DIFFERENCE_ENERGIE = valeur;
+                    else if (cle == "SEUIL_SIMILARITE_R") params.SEUIL_SIMILARITE_R = valeur;
+                    else if (cle == "TAUX_AUGMENTATION_ENNUI") params.TAUX_AUGMENTATION_ENNUI = valeur;
+                    else if (cle == "FACTEUR_ECHANGE_PSYCHIQUE") params.FACTEUR_ECHANGE_PSYCHIQUE = valeur;
+                    else if (cle == "K_M") params.K_M = valeur;
+                    else if (cle == "intervalle_export") params.intervalle_export = static_cast<int>(valeur);
+                } catch (const std::exception& e) {
+                    std::cerr << "Avertissement: Ligne invalide dans le fichier de paramètres: " << ligne << std::endl;
+                }
+            }
+        }
+    }
+    std::cout << "Paramètres chargés." << std::endl;
+    return true;
+}
