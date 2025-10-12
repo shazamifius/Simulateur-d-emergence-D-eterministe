@@ -3,22 +3,40 @@
 
 #include <vector>
 #include <tuple>
+#include <string>
+
+// --- Global Parameters Struct ---
+struct ParametresGlobaux {
+    // Loi 1 (Mouvement)
+    float K_E = 2.0f;
+    float K_D = 1.0f;
+    float K_C = 0.5f;
+    // Loi 2 (Division)
+    float SEUIL_ENERGIE_DIVISION = 1.8f;
+    // Loi 4 (Echange)
+    float FACTEUR_ECHANGE_ENERGIE = 0.05f;
+    float SEUIL_DIFFERENCE_ENERGIE = 0.2f;
+    float SEUIL_SIMILARITE_R = 0.1f;
+    // Loi 5 (Psychisme)
+    float TAUX_AUGMENTATION_ENNUI = 0.001f;
+    float FACTEUR_ECHANGE_PSYCHIQUE = 0.1f;
+};
 
 // Définition de la structure Cellule
 struct Cellule {
-    float reserve_energie;      // E
-    float dette_besoin;         // D
-    float dette_stimulus;       // L (new)
-    float resistance_stress;    // R
-    float seuil_critique;       // Sc
-    float score_survie;         // S
-    float charge_emotionnelle;  // C
-    int horloge_interne;        // H
-    int age;                    // A
-    bool est_vivante;           // V
+    float reserve_energie = 0.0f;
+    float dette_besoin = 0.0f;
+    float dette_stimulus = 0.0f;
+    float resistance_stress = 0.0f;
+    float seuil_critique = 0.0f;
+    float score_survie = 0.0f;
+    float charge_emotionnelle = 0.0f;
+    int horloge_interne = 0;
+    int age = 0;
+    bool est_vivante = false;
 };
 
-// --- Structures for deferred updates ---
+// --- Deferred Action Structs ---
 struct MouvementSouhaite {
     std::tuple<int, int, int> source;
     std::tuple<int, int, int> destination;
@@ -49,15 +67,16 @@ public:
     MondeSED(int size_x, int size_y, int size_z);
     void InitialiserMonde();
     void AvancerTemps();
+    void ExporterEtatMonde(const std::string& nom_fichier) const;
 
-    // Law application functions
+    ParametresGlobaux params;
+
     void AppliquerLoiZero(int x, int y, int z);
     void AppliquerLoiMouvement(int x, int y, int z, const std::vector<Cellule>& read_grid);
     void AppliquerLoiDivision(int x, int y, int z, const std::vector<Cellule>& read_grid);
     void AppliquerLoiEchange(int x, int y, int z, const std::vector<Cellule>& read_grid);
     void AppliquerLoiPsychisme(int x, int y, int z, const std::vector<Cellule>& read_grid);
 
-    // Deferred action functions
     void AppliquerMouvements();
     void AppliquerDivisions();
     void AppliquerEchangesEnergie();
@@ -68,7 +87,6 @@ public:
     int getTailleX() const { return size_x; }
     int getTailleY() const { return size_y; }
     int getTailleZ() const { return size_z; }
-    const std::vector<Cellule>& getGrille() const { return grille; }
 
 private:
     int size_x, size_y, size_z;
@@ -77,15 +95,6 @@ private:
     std::vector<DivisionSouhaitee> divisions_souhaitees;
     std::vector<EchangeEnergieSouhaite> echanges_energie_souhaites;
     std::vector<EchangePsychiqueSouhaite> echanges_psychiques_souhaites;
-
-    // --- LAW CONSTANTS ---
-    static constexpr float K_E = 2.0f, K_D = 1.0f, K_C = 0.5f;
-    static constexpr float SEUIL_ENERGIE_DIVISION = 1.8f;
-    static constexpr float TAUX_AUGMENTATION_ENNUI = 0.001f;
-    static constexpr float FACTEUR_ECHANGE_ENERGIE = 0.05f;
-    static constexpr float SEUIL_DIFFERENCE_ENERGIE = 0.2f;
-    static constexpr float SEUIL_SIMILARITE_R = 0.1f;
-    static constexpr float FACTEUR_ECHANGE_PSYCHIQUE = 0.1f;
 
     int getIndex(int x, int y, int z) const;
     std::vector<std::tuple<int, int, int>> GetCoordsVoisins(int x, int y, int z) const;
