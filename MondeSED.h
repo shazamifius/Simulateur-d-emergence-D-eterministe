@@ -90,7 +90,6 @@ public:
     int getTailleX() const { return size_x; }
     int getTailleY() const { return size_y; }
     int getTailleZ() const { return size_z; }
-    const std::vector<Cellule>& getGrille() const { return grille; }
 
 private:
     int size_x, size_y, size_z;
