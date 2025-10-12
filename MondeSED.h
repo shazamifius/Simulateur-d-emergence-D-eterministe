@@ -70,8 +70,8 @@ struct EchangePsychiqueSouhaite {
 class MondeSED {
 public:
     MondeSED(int size_x, int size_y, int size_z);
-    void InitialiserMonde();
-    void AvancerTemps();
+    void InitialiserMonde(float initial_density = 0.5f); // Default density
+    void AvancerTemps(const std::string& output_basename);
     void ExporterEtatMonde(const std::string& nom_de_base) const;
 
     ParametresGlobaux params;

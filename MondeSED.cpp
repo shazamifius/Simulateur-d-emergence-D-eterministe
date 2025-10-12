@@ -30,15 +30,15 @@ const Cellule& MondeSED::getCellule(int x, int y, int z, const std::vector<Cellu
     return grid[getIndex(x, y, z)];
 }
 
-void MondeSED::InitialiserMonde() {
-    std::mt19937 rng(static_cast<unsigned int>(std::time(0)));
+void MondeSED::InitialiserMonde(float initial_density) {
+    std::mt19937 rng(static_cast<unsigned int>(std::time(nullptr)));
     std::uniform_real_distribution<float> random_float(0.0f, 1.0f);
     std::uniform_real_distribution<float> random_r_s(0.1f, 0.9f);
 
     for (int z = 0; z < size_z; ++z) {
         for (int y = 0; y < size_y; ++y) {
             for (int x = 0; x < size_x; ++x) {
-                if (random_float(rng) < 0.5f) {
+                if (random_float(rng) < initial_density) {
                     Cellule& cell = getCellule(x, y, z);
                     cell.est_vivante = true;
                     cell.reserve_energie = 1.0f;
@@ -295,7 +295,7 @@ void MondeSED::AppliquerEchangesPsychiques() {
     echanges_psychiques_souhaites.clear();
 }
 
-void MondeSED::AvancerTemps() {
+void MondeSED::AvancerTemps(const std::string& output_basename) {
     cycle_actuel++;
 
     const std::vector<Cellule> read_grid = grille;
@@ -332,6 +332,6 @@ void MondeSED::AvancerTemps() {
     }
 
     if (params.intervalle_export > 0 && cycle_actuel % params.intervalle_export == 0) {
-        ExporterEtatMonde("simulation");
+        ExporterEtatMonde(output_basename);
     }
 }
