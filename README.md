@@ -65,3 +65,65 @@ Le moteur Unreal Engine sera utilisé pour la **visualisation brute** des donné
 Le produit final est une **simulation interactive** qui permet à l'utilisateur de modifier les Constantes $R$ et $S_c$ (les facteurs morphologiques de naissance) et d'observer en temps réel comment l'évolution de la **Soupe Primordiale** crée une espèce stable différente à chaque fois.
 
 Ce projet est une quête de la **Loi de la Vie** dans sa forme mathématique la plus pure.
+
+---
+
+## 4. COMMENT L'UTILISER
+
+Ce projet utilise un `Makefile` pour simplifier la compilation et l'exécution.
+
+### A. Prérequis
+
+- Un compilateur C++ compatible avec C++14 (par exemple, `g++`).
+- L'outil `make`.
+- OpenMP pour la parallélisation.
+- Python 3 et les bibliothèques `pandas`, `matplotlib`, `natsort`, `imageio`.
+
+### B. Compilation
+
+Pour compiler le simulateur, ouvrez un terminal à la racine du projet et exécutez simplement :
+
+```bash
+make
+```
+
+Cela créera un exécutable nommé `sed_simulator`.
+
+### C. Lancer une Simulation
+
+L'exécutable prend les arguments suivants en ligne de commande :
+
+```
+Usage: ./sed_simulator <size_x> <size_y> <size_z> <cycles> <initial_density> <output_basename>
+```
+
+- **`<size_x> <size_y> <size_z>`**: Les dimensions de la grille de simulation.
+- **`<cycles>`**: Le nombre de cycles à simuler.
+- **`<initial_density>`**: La probabilité (entre 0.0 et 1.0) qu'une cellule soit vivante au démarrage.
+- **`<output_basename>`**: Le nom de base pour les fichiers de sortie CSV.
+
+**Exemple :** Pour lancer une simulation de 30x30x30 pendant 100 cycles avec 15% de cellules initiales et sauvegarder les résultats avec le préfixe "sim1" :
+
+```bash
+./sed_simulator 30 30 30 100 0.15 sim1
+```
+
+La simulation générera des fichiers `sim1_cycle_10.csv`, `sim1_cycle_20.csv`, etc.
+
+### D. Générer une Visualisation Animée
+
+Après avoir lancé une simulation, vous pouvez créer un GIF animé de l'évolution du monde.
+
+Utilisez le script `visualiseur_3D.py` en lui passant le nom de base que vous avez utilisé pour la simulation :
+
+```bash
+python3 visualiseur_3D.py <output_basename>
+```
+
+**Exemple :** Pour visualiser la simulation "sim1" de l'exemple précédent :
+
+```bash
+python3 visualiseur_3D.py sim1
+```
+
+Le script créera un fichier `sim1_animation.gif` dans un nouveau dossier `visualisations/`.
