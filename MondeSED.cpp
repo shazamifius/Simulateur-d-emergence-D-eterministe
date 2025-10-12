@@ -56,7 +56,7 @@ void MondeSED::ExporterEtatMonde(const std::string& nom_fichier) const {
         return;
     }
 
-    outfile << "x,y,z,E,C,R\n";
+    outfile << "x,y,z,E,C,R,A\n";
 
     for (int z = 0; z < size_z; ++z) {
         for (int y = 0; y < size_y; ++y) {
@@ -66,7 +66,8 @@ void MondeSED::ExporterEtatMonde(const std::string& nom_fichier) const {
                     outfile << x << "," << y << "," << z << ","
                             << cell.reserve_energie << ","
                             << cell.charge_emotionnelle << ","
-                            << cell.resistance_stress << "\n";
+                            << cell.resistance_stress << ","
+                            << cell.age << "\n";
                 }
             }
         }
