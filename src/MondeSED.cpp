@@ -4,6 +4,13 @@
 #include <ctime>
 #include <algorithm>
 #include <map>
+#include <numeric>
+
+int MondeSED::getNombreCellulesVivantes() const {
+    return std::accumulate(grille.begin(), grille.end(), 0, [](int count, const Cellule& cell) {
+        return count + (cell.is_alive ? 1 : 0);
+    });
+}
 #include <limits>
 #include <cmath>
 #include <fstream>

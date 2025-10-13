@@ -1,0 +1,6 @@
+# Build artifacts
+/build
+/sed_lab
+
+# Cloned libraries
+/raylib/

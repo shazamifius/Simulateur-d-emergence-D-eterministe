@@ -21,6 +21,7 @@ BUILD_DIR = build
 CXXFLAGS = -std=c++17 -Wall -Wextra -O3 -g -fopenmp -DPLATFORM_DESKTOP
 CXXFLAGS += $(foreach dir,$(INCLUDE_DIRS),-I$(dir))
 CXXFLAGS += -I/usr/local/include # Common path for system-wide libraries
+CXXFLAGS += -I/usr/include # Standard path for dev libraries like raylib
 
 # LDFLAGS:
 # Link against required libraries: raylib, OpenGL, math, etc.
@@ -49,9 +50,12 @@ $(APP_TARGET): $(OBJS)
 	$(CXX) -o $@ $(OBJS) $(LDFLAGS)
 	@echo "==> Build complete. Executable is '$(APP_TARGET)'."
 
+# Use VPATH to specify search paths for prerequisites
+VPATH = $(SRC_DIRS)
+
 # Generic rule to compile object files into the build directory
-$(BUILD_DIR)/%.o: $(findfirst base,$(foreach base,$(addsuffix /%.cpp,$(SRC_DIRS)),$(wildcard $(base))))
-	@echo "==> Compiling source: $(<F)"
+$(BUILD_DIR)/%.o: %.cpp
+	@echo "==> Compiling source: $<"
 	@mkdir -p $(BUILD_DIR)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
@@ -67,8 +71,8 @@ clean:
 
 # Target to run the application
 run: all
-	@echo "==> Launching SED-Lab..."
-	./$(APP_TARGET)
+	@echo "==> Launching SED-Lab with virtual display..."
+	xvfb-run --auto-servernum --server-args="-screen 0 1280x800x24" ./$(APP_TARGET)
 
 # Target to display help
 help:
