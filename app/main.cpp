@@ -1,93 +1,136 @@
-#include <iostream>
-#include <string>
-#include <vector>
-#include <stdexcept>
+// --- Fichiers d'en-tête ---
+#include "imgui.h"
+#include "raylib.h"
+#include "rlgl.h"
+#include "imgui_impl_raylib.h"
 #include "MondeSED.h"
+#include <iostream>
+#include <memory>
 
-// --- Helper function to print usage instructions ---
-void print_usage(const char* prog_name) {
-    std::cerr << "Usage: " << prog_name << " <size_x> <size_y> <size_z> <cycles> <initial_density> <output_basename> [config_file]" << std::endl;
-    std::cerr << "  <size_x>, <size_y>, <size_z>: Dimensions of the world grid (integers)." << std::endl;
-    std::cerr << "  <cycles>: Number of simulation cycles to run (integer)." << std::endl;
-    std::cerr << "  <initial_density>: Probability (0.0 to 1.0) for a cell to be alive at start." << std::endl;
-    std::cerr << "  <output_basename>: Base name for the output CSV files (string)." << std::endl;
-    std::cerr << "  [config_file]: (Optional) Path to a configuration file for simulation parameters." << std::endl;
-}
+// --- Variables globales ---
+std::unique_ptr<MondeSED> monde;
+bool simulation_running = false;
 
-// --- Main application entry point ---
-int main(int argc, char* argv[]) {
-    // --- Argument Parsing ---
-    if (argc < 7 || argc > 8) {
-        print_usage(argv[0]);
-        return 1;
-    }
+// --- Paramètres de simulation configurables via l'UI ---
+static int sim_size[3] = {16, 16, 16};
+static float sim_density = 0.1f;
+static int sim_cycles_per_frame = 1;
 
-    int size_x, size_y, size_z, cycles;
-    float initial_density;
-    std::string output_basename;
-    std::string config_file = "";
+// --- Fonctions ---
+void ResetSimulation();
+void DrawUI();
+void Draw3DVisualization(Camera& camera);
 
-    try {
-        size_x = std::stoi(argv[1]);
-        size_y = std::stoi(argv[2]);
-        size_z = std::stoi(argv[3]);
-        cycles = std::stoi(argv[4]);
-        initial_density = std::stof(argv[5]);
-        output_basename = argv[6];
+int main() {
+    int screenWidth = 1280;
+    int screenHeight = 800;
+    SetConfigFlags(FLAG_WINDOW_RESIZABLE | FLAG_MSAA_4X_HINT);
+    InitWindow(screenWidth, screenHeight, "SED-Lab | C++ Edition");
+    SetTargetFPS(60);
 
-        if (argc == 8) {
-            config_file = argv[7];
-        }
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO();
+    ImGui::StyleColorsDark();
+    ImGui_ImplRaylib_Init();
+    ImGui_ImplRaylib_LoadDefaultFont();
 
-        if (size_x <= 0 || size_y <= 0 || size_z <= 0 || cycles <= 0 || initial_density < 0.0f || initial_density > 1.0f) {
-            throw std::invalid_argument("Invalid argument value.");
-        }
-    } catch (const std::exception& e) {
-        std::cerr << "Error parsing arguments: " << e.what() << std::endl;
-        print_usage(argv[0]);
-        return 1;
-    }
+    Camera3D camera = { 0 };
+    camera.position = (Vector3){ 30.0f, 30.0f, 30.0f };
+    camera.target = (Vector3){ (float)sim_size[0]/2, (float)sim_size[1]/2, (float)sim_size[2]/2 };
+    camera.up = (Vector3){ 0.0f, 1.0f, 0.0f };
+    camera.fovy = 45.0f;
+    camera.projection = CAMERA_PERSPECTIVE;
 
-    // --- Simulation Setup & Execution ---
-    std::cout << "--- Initialisation du Simulateur d'Émergence Déterministe ---" << std::endl;
-    std::cout << "Paramètres:" << std::endl;
-    std::cout << "  - Taille du monde: " << size_x << "x" << size_y << "x" << size_z << std::endl;
-    std::cout << "  - Cycles: " << cycles << std::endl;
-    std::cout << "  - Densité initiale: " << initial_density * 100 << "%" << std::endl;
-    std::cout << "  - Fichier de sortie: " << output_basename << "_cycle_*.csv" << std::endl;
-
-    try {
-        MondeSED monde(size_x, size_y, size_z);
-
-        // Load parameters from file if provided
-        if (!config_file.empty()) {
-            monde.ChargerParametresDepuisFichier(config_file);
-        }
-
-        // Pass the density to the initialization method
-        monde.InitialiserMonde(initial_density);
-
-        std::cout << "\nDebut de la simulation..." << std::endl;
-        for (int i = 0; i < cycles; ++i) {
-            monde.AvancerTemps(); // La bibliothèque avance d'un pas
-
-            // La logique d'export est maintenant gérée par l'application
-            if (monde.params.intervalle_export > 0 && (i + 1) % monde.params.intervalle_export == 0) {
-                std::cout << "Exporting state at cycle " << i + 1 << "..." << std::endl;
-                monde.ExporterEtatMonde(output_basename);
-            }
-
-            // Log de progression
-            if ((i + 1) % 10 == 0 || i == cycles - 1) {
-                std::cout << "Cycle " << i + 1 << "/" << cycles << " termine." << std::endl;
+    while (!WindowShouldClose()) {
+        if (simulation_running && monde) {
+            for(int i = 0; i < sim_cycles_per_frame; ++i) {
+                monde->AvancerTemps();
             }
         }
-        std::cout << "Simulation terminee." << std::endl;
+        UpdateCamera(&camera, CAMERA_ORBITAL);
 
-    } catch (const std::exception& e) {
-        std::cerr << "An error occurred during simulation: " << e.what() << std::endl;
-        return 1;
+        BeginDrawing();
+        ClearBackground(Color{20, 20, 20, 255});
+
+        BeginMode3D(camera);
+        if (monde) {
+            Draw3DVisualization(camera);
+        }
+        DrawGrid(40, 1.0f);
+        EndMode3D();
+
+        ImGui_ImplRaylib_NewFrame();
+        ImGui::NewFrame();
+        DrawUI();
+        ImGui::Render();
+        ImGui_ImplRaylib_RenderDrawData(ImGui::GetDrawData());
+
+        EndDrawing();
     }
+
+    ImGui_ImplRaylib_Shutdown();
+    ImGui::DestroyContext();
+    CloseWindow();
 
     return 0;
+}
+
+void ResetSimulation() {
+    monde = std::make_unique<MondeSED>(sim_size[0], sim_size[1], sim_size[2]);
+    monde->InitialiserMonde(sim_density);
+    simulation_running = false;
+}
+
+void DrawUI() {
+    ImGui::Begin("Contrôles", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+
+    ImGui::Text("Configuration");
+    ImGui::Separator();
+    if (ImGui::InputInt3("Taille Grille", sim_size)) {
+        // Clamp values to be at least 1
+        sim_size[0] = std::max(1, sim_size[0]);
+        sim_size[1] = std::max(1, sim_size[1]);
+        sim_size[2] = std::max(1, sim_size[2]);
+    }
+    ImGui::SliderFloat("Densité Initiale", &sim_density, 0.0f, 1.0f, "%.2f");
+    ImGui::SliderInt("Cycles par Frame", &sim_cycles_per_frame, 1, 100);
+
+    ImGui::Separator();
+
+    if (ImGui::Button("Initialiser/Réinitialiser", ImVec2(-1, 0))) {
+        ResetSimulation();
+    }
+
+    if (monde) {
+        if (simulation_running) {
+            if (ImGui::Button("Pause", ImVec2(-1, 0))) {
+                simulation_running = false;
+            }
+        } else {
+            if (ImGui::Button("Démarrer", ImVec2(-1, 0))) {
+                simulation_running = true;
+            }
+        }
+    }
+
+    if (monde && ImGui::CollapsingHeader("Paramètres Avancés des Lois")) {
+        auto& params = monde->params;
+        ImGui::SliderFloat("K_E (Attraction Énergie)", &params.K_E, 0.0f, 5.0f);
+        ImGui::SliderFloat("K_D (Motivation Faim)", &params.K_D, 0.0f, 5.0f);
+        ImGui::SliderFloat("K_C (Aversion Stress)", &params.K_C, 0.0f, 5.0f);
+        ImGui::SliderFloat("Seuil Énergie Division", &params.SEUIL_ENERGIE_DIVISION, 0.1f, 5.0f);
+        ImGui::SliderFloat("Facteur Échange Énergie", &params.FACTEUR_ECHANGE_ENERGIE, 0.0f, 0.5f, "%.3f");
+        ImGui::SliderFloat("Seuil Diff. Énergie", &params.SEUIL_DIFFERENCE_ENERGIE, 0.0f, 1.0f);
+        ImGui::SliderFloat("Seuil Similarité R", &params.SEUIL_SIMILARITE_R, 0.0f, 1.0f);
+        ImGui::SliderFloat("Taux Augmentation Ennui", &params.TAUX_AUGMENTATION_ENNUI, 0.0f, 0.01f, "%.4f");
+        ImGui::SliderFloat("Facteur Échange Psychique", &params.FACTEUR_ECHANGE_PSYCHIQUE, 0.0f, 0.5f);
+        ImGui::SliderFloat("K_M (Influence Mémoire)", &params.K_M, 0.0f, 5.0f);
+    }
+
+    ImGui::End();
+}
+
+void Draw3DVisualization(Camera& camera) {
+    // Logique de visualisation 3D à implémenter ici
 }
