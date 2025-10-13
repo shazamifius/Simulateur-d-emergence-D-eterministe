@@ -63,18 +63,58 @@ Pour visualiser les résultats de la simulation, un script Python est fourni. Il
 
 ## 4. COMMENT L'UTILISER
 
-Ce projet peut être utilisé de deux manières : soit en ligne de commande pour des simulations rapides, soit via l'interface graphique pour une exploration scientifique détaillée.
+### A. Installation et Prérequis
 
-### A. Prérequis Communs
+#### Pour Windows (Guide Détaillé)
 
-- Un compilateur C++ compatible C++14 (ex: `g++`).
-- L'outil `make`.
-- OpenMP pour la parallélisation.
-- Python 3 et les bibliothèques `pandas`, `matplotlib`, `natsort`, `imageio`, `dearpygui`.
+Si vous partez de zéro sous Windows, voici les étapes pour configurer votre environnement.
+
+**1. Installer MSYS2 & le Compilateur C++**
+
+Le moteur de simulation nécessite un compilateur C++ (comme g++) et l'outil `make`. Le moyen le plus simple de les obtenir sous Windows est via MSYS2.
+
+- **Téléchargez et installez MSYS2 :**
+  - Allez sur le site officiel : [https://www.msys2.org/](https://www.msys2.org/)
+  - Suivez les instructions d'installation du site.
+
+- **Installez les outils de compilation :**
+  - Une fois l'installation terminée, ouvrez le terminal **MSYS2 MinGW 64-bit**.
+  - Mettez à jour les paquets en tapant la commande suivante et en suivant les instructions (il faudra peut-être fermer et rouvrir le terminal) :
+    ```bash
+    pacman -Syu
+    ```
+  - Installez le compilateur C++, `make`, et les outils nécessaires avec cette commande :
+    ```bash
+    pacman -S --needed base-devel mingw-w64-x86_64-toolchain make
+    ```
+
+**2. Installer les Dépendances Python**
+
+Le projet utilise plusieurs bibliothèques Python pour l'interface graphique et la visualisation. Assurez-vous d'avoir Python 3 installé, puis ouvrez une invite de commandes Windows (CMD) ou PowerShell et exécutez la commande suivante :
+
+```bash
+pip install pandas matplotlib natsort imageio dearpygui
+```
+
+#### Pour Linux / macOS
+
+Assurez-vous que les outils suivants sont installés via le gestionnaire de paquets de votre système (`apt`, `yum`, `brew`, etc.) :
+- Un compilateur C++ (g++, clang++)
+- `make`
+- `python3` et `pip`
+
+Puis installez les dépendances Python :
+```bash
+pip install pandas matplotlib natsort imageio dearpygui
+```
 
 ### B. Compilation du Moteur C++
 
-Quel que soit le mode d'utilisation, le moteur de simulation C++ doit d'abord être compilé. Ouvrez un terminal à la racine du projet et exécutez :
+Quel que soit le mode d'utilisation ou le système d'exploitation, le moteur de simulation C++ doit d'abord être compilé.
+- Sous Windows, utilisez le terminal **MSYS2 MinGW 64-bit**.
+- Sous Linux/macOS, utilisez votre terminal standard.
+
+Ouvrez un terminal à la racine du projet et exécutez :
 ```bash
 make
 ```
