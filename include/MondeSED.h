@@ -82,6 +82,10 @@ public:
     // Méthode pour charger les paramètres depuis un fichier
     bool ChargerParametresDepuisFichier(const std::string& nom_fichier);
 
+    // --- Sauvegarde et Chargement de l'état de la simulation ---
+    bool SauvegarderEtat(const std::string& nom_fichier) const;
+    bool ChargerEtat(const std::string& nom_fichier);
+
     // Paramètres modifiables de la simulation
     ParametresGlobaux params;
 

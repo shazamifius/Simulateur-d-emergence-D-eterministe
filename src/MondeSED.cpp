@@ -168,6 +168,9 @@ void MondeSED::AppliquerLoiMouvement(int x, int y, int z, const std::vector<Cell
 }
 
 void MondeSED::AppliquerMouvements() {
+    // Gère les conflits de mouvement : si plusieurs cellules visent la même destination,
+    // seule celle avec la "Dette de Besoin" (D) la plus élevée l'emporte.
+    // Cette approche est déterministe et garantit qu'il n'y a pas de double occupation.
     std::map<std::tuple<int, int, int>, MouvementSouhaite> mouvements_gagnants;
     for (const auto& mouvement : mouvements_souhaites) {
         auto it = mouvements_gagnants.find(mouvement.destination);
@@ -175,6 +178,8 @@ void MondeSED::AppliquerMouvements() {
             mouvements_gagnants[mouvement.destination] = mouvement;
         }
     }
+
+    // Applique les mouvements validés
     for (const auto& pair : mouvements_gagnants) {
         const auto& mouvement = pair.second;
         Cellule& source_cell = getCellule(std::get<0>(mouvement.source), std::get<1>(mouvement.source), std::get<2>(mouvement.source));
@@ -186,6 +191,9 @@ void MondeSED::AppliquerMouvements() {
     mouvements_souhaites.clear();
 }
 
+// Génère une mutation déterministe pour R et Sc lors de la division.
+// La mutation dépend uniquement des coordonnées de la case cible et de l'âge de la nouvelle cellule,
+// garantissant que le résultat est toujours le même pour une situation donnée.
 float deterministic_mutation(int x, int y, int z, int age) {
     unsigned int hash = (x * 18397) + (y * 20441) + (z * 22543) + (age * 24671);
     int decision = hash % 3;
@@ -221,6 +229,8 @@ void MondeSED::AppliquerLoiDivision(int x, int y, int z, const std::vector<Cellu
 }
 
 void MondeSED::AppliquerDivisions() {
+    // Gère les conflits de division : si plusieurs cellules visent la même case pour se diviser,
+    // seule celle avec l'Énergie (E) la plus élevée l'emporte.
     std::map<std::tuple<int, int, int>, DivisionSouhaitee> divisions_gagnantes;
     for (const auto& division : divisions_souhaitees) {
         auto it = divisions_gagnantes.find(division.destination_fille);
@@ -228,6 +238,8 @@ void MondeSED::AppliquerDivisions() {
             divisions_gagnantes[division.destination_fille] = division;
         }
     }
+
+    // Applique les divisions validées
     for (const auto& pair : divisions_gagnantes) {
         const auto& division = pair.second;
         Cellule& mere = getCellule(std::get<0>(division.source_mere), std::get<1>(division.source_mere), std::get<2>(division.source_mere));
@@ -351,6 +363,54 @@ void MondeSED::AvancerTemps() {
 const std::vector<Cellule>& MondeSED::getGrille() const {
     return grille;
 }
+
+// --- Implémentation de la sauvegarde et du chargement ---
+
+bool MondeSED::SauvegarderEtat(const std::string& nom_fichier) const {
+    std::ofstream fichier_sortie(nom_fichier, std::ios::binary);
+    if (!fichier_sortie) {
+        std::cerr << "Erreur: Impossible d'ouvrir le fichier de sauvegarde '" << nom_fichier << "'" << std::endl;
+        return false;
+    }
+
+    // Écrire les métadonnées de la simulation
+    fichier_sortie.write(reinterpret_cast<const char*>(&size_x), sizeof(size_x));
+    fichier_sortie.write(reinterpret_cast<const char*>(&size_y), sizeof(size_y));
+    fichier_sortie.write(reinterpret_cast<const char*>(&size_z), sizeof(size_z));
+    fichier_sortie.write(reinterpret_cast<const char*>(&cycle_actuel), sizeof(cycle_actuel));
+    fichier_sortie.write(reinterpret_cast<const char*>(&params), sizeof(params));
+
+    // Écrire les données de la grille
+    fichier_sortie.write(reinterpret_cast<const char*>(grille.data()), grille.size() * sizeof(Cellule));
+
+    fichier_sortie.close();
+    std::cout << "État de la simulation sauvegardé dans '" << nom_fichier << "'." << std::endl;
+    return true;
+}
+
+bool MondeSED::ChargerEtat(const std::string& nom_fichier) {
+    std::ifstream fichier_entree(nom_fichier, std::ios::binary);
+    if (!fichier_entree) {
+        std::cerr << "Erreur: Impossible d'ouvrir le fichier de chargement '" << nom_fichier << "'" << std::endl;
+        return false;
+    }
+
+    // Lire les métadonnées de la simulation
+    fichier_entree.read(reinterpret_cast<char*>(&size_x), sizeof(size_x));
+    fichier_entree.read(reinterpret_cast<char*>(&size_y), sizeof(size_y));
+    fichier_entree.read(reinterpret_cast<char*>(&size_z), sizeof(size_z));
+    fichier_entree.read(reinterpret_cast<char*>(&cycle_actuel), sizeof(cycle_actuel));
+    fichier_entree.read(reinterpret_cast<char*>(&params), sizeof(params));
+
+    // Redimensionner la grille et lire les données
+    grille.resize(size_x * size_y * size_z);
+    fichier_entree.read(reinterpret_cast<char*>(grille.data()), grille.size() * sizeof(Cellule));
+
+    fichier_entree.close();
+    std::cout << "État de la simulation chargé depuis '" << nom_fichier << "'." << std::endl;
+    return true;
+}
+
 
 // --- Implementation for loading parameters from a file ---
 bool MondeSED::ChargerParametresDepuisFichier(const std::string& nom_fichier) {
