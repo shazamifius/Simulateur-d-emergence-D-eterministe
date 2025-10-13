@@ -26,7 +26,7 @@ Ma fondation conceptuelle se base sur l'idée de la **simplicité générant la 
 
 ## 2. ARCHITECTURE TECHNIQUE
 
-Le projet est centré sur un moteur de simulation C++ performant, avec une visualisation simple et efficace en Python.
+Le projet est centré sur un moteur de simulation C++ performant, avec une interface de contrôle et de visualisation unifiée en Python.
 
 ### A. Moteur de Simulation (C++)
 
@@ -52,101 +52,53 @@ L'état de chaque Cellule est défini par un ensemble de variables. Ces paramèt
 
 ---
 
-## 3. VISUALISATION (Python)
+## 3. COMMENT UTILISER SED-LAB
 
-Pour visualiser les résultats de la simulation, un script Python est fourni. Il lit les fichiers de données `.csv` générés par le simulateur et crée une animation 3D au format GIF.
+Le projet a été unifié dans une seule application : **SED-Lab**. Elle gère la configuration, la compilation, l'exécution et la visualisation de manière transparente.
 
-*   **Esthétique Voxel :** Le rendu respecte la nature discrète de la grille.
-*   **Visualisation de l'État :** La couleur et la taille des voxels dans le GIF sont directement liées aux états internes des cellules (Énergie et Charge Émotionnelle), rendant leur "psyché" visible.
+### A. Installation des Prérequis
 
----
+#### Pour Windows
 
-## 4. COMMENT L'UTILISER
+1.  **Installer MSYS2 & le Compilateur C++:**
+    - Téléchargez et installez **MSYS2** depuis [msys2.org](https://www.msys2.org/).
+    - Ouvrez le terminal **MSYS2 MinGW 64-bit** et exécutez `pacman -Syu` pour mettre à jour, puis `pacman -S --needed base-devel mingw-w64-x86_64-toolchain make` pour installer les outils de compilation.
 
-### A. Installation et Prérequis
-
-#### Pour Windows (Guide Détaillé)
-
-Si vous partez de zéro sous Windows, voici les étapes pour configurer votre environnement.
-
-**1. Installer MSYS2 & le Compilateur C++**
-
-Le moteur de simulation nécessite un compilateur C++ (comme g++) et l'outil `make`. Le moyen le plus simple de les obtenir sous Windows est via MSYS2.
-
-- **Téléchargez et installez MSYS2 :**
-  - Allez sur le site officiel : [https://www.msys2.org/](https://www.msys2.org/)
-  - Suivez les instructions d'installation du site.
-
-- **Installez les outils de compilation :**
-  - Une fois l'installation terminée, ouvrez le terminal **MSYS2 MinGW 64-bit**.
-  - Mettez à jour les paquets en tapant la commande suivante et en suivant les instructions (il faudra peut-être fermer et rouvrir le terminal) :
-    ```bash
-    pacman -Syu
-    ```
-  - Installez le compilateur C++, `make`, et les outils nécessaires avec cette commande :
-    ```bash
-    pacman -S --needed base-devel mingw-w64-x86_64-toolchain make
-    ```
-
-**2. Installer les Dépendances Python**
-
-Le projet utilise plusieurs bibliothèques Python pour l'interface graphique et la visualisation. Assurez-vous d'avoir Python 3 installé, puis ouvrez une invite de commandes Windows (CMD) ou PowerShell et exécutez la commande suivante :
-
-```bash
-pip install pandas matplotlib natsort imageio dearpygui
-```
+2.  **Installer les Dépendances Python:**
+    - Assurez-vous d'avoir Python 3. Ouvrez une invite de commandes (CMD) ou PowerShell et exécutez :
+      ```bash
+      pip install pandas matplotlib natsort imageio dearpygui
+      ```
 
 #### Pour Linux / macOS
 
-Assurez-vous que les outils suivants sont installés via le gestionnaire de paquets de votre système (`apt`, `yum`, `brew`, etc.) :
-- Un compilateur C++ (g++, clang++)
-- `make`
-- `python3` et `pip`
+1.  **Installer les Outils de Compilation:**
+    - Utilisez votre gestionnaire de paquets (`apt`, `yum`, `brew`, etc.) pour installer `g++`, `make`, `python3` et `pip`.
 
-Puis installez les dépendances Python :
-```bash
-pip install pandas matplotlib natsort imageio dearpygui
-```
-
-### B. Compilation du Moteur C++
-
-Quel que soit le mode d'utilisation ou le système d'exploitation, le moteur de simulation C++ doit d'abord être compilé.
-- Sous Windows, utilisez le terminal **MSYS2 MinGW 64-bit**.
-- Sous Linux/macOS, utilisez votre terminal standard.
-
-Ouvrez un terminal à la racine du projet et exécutez :
-```bash
-make
-```
-Cela créera un exécutable nommé `sed_simulator`, qui est utilisé par les deux méthodes ci-dessous.
-
-### C. Méthode 1: Interface Scientifique (Recommandée)
-
-Pour une exploration interactive des paramètres.
-
-1.  **Lancer l'interface :**
+2.  **Installer les Dépendances Python:**
     ```bash
-    python3 interface_scientifique.py
+    pip install pandas matplotlib natsort imageio dearpygui
     ```
-2.  **Utilisation :**
-    - Ajustez les sliders et les champs de saisie pour configurer votre simulation.
-    - Cliquez sur "Lancer la Simulation et Visualiser".
-    - L'interface se chargera d'exécuter le simulateur, de générer le GIF, et d'afficher un aperçu. Le GIF final est sauvegardé dans le dossier `visualisations/`.
 
-### D. Méthode 2: Ligne de Commande (Avancé)
+### B. Lancement de SED-Lab
 
-Pour des exécutions rapides avec les paramètres par défaut.
+Il n'est plus nécessaire de compiler manuellement le projet. L'application s'en charge pour vous.
 
-1.  **Lancer une Simulation :**
-    ```
-    Usage: ./sed_simulator <size_x> <size_y> <size_z> <cycles> <initial_density> <output_basename> [config_file]
-    ```
-    **Exemple :**
+1.  **Ouvrez un terminal** à la racine du projet.
+    - *Note pour Windows :* Utilisez un terminal standard (CMD ou PowerShell), **pas** le terminal MSYS2, pour lancer l'application Python.
+2.  **Exécutez la commande suivante :**
     ```bash
-    ./sed_simulator 30 30 30 100 0.15 sim1
+    python3 sed_lab.py
     ```
-2.  **Générer une Visualisation Animée :**
-    ```bash
-    python3 visualiseur_3D.py sim1
-    ```
-    Le script créera un fichier `sim1_animation.gif` dans le dossier `visualisations/`.
+
+### C. Utilisation de l'Interface
+
+1.  **Configurer :** Utilisez les panneaux de gauche pour ajuster les paramètres de la simulation et les constantes des lois physiques.
+2.  **Lancer :** Cliquez sur le bouton **"Lancer le Cycle Complet"**.
+3.  **Observer :** L'application va automatiquement :
+    - **Compiler** le moteur C++ en arrière-plan.
+    - **Exécuter** la simulation avec les paramètres choisis.
+    - **Générer** l'animation GIF à partir des données de sortie.
+    - **Afficher** un aperçu de l'animation directement dans l'interface.
+
+Le GIF final est sauvegardé dans le dossier `visualisations/`.
