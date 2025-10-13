@@ -88,6 +88,11 @@ Le moteur de simulation nécessite un compilateur C++ (comme g++) et l'outil `ma
     pacman -S --needed base-devel mingw-w64-x86_64-toolchain make
     ```
 
+- **Ajoutez le compilateur à l'Environnement Windows (Étape Cruciale) :**
+  - Pour que les commandes `g++` et `make` soient accessibles depuis n'importe quel terminal (comme CMD ou PowerShell, qui lanceront l'interface Python), vous devez ajouter le dossier `bin` de MinGW à votre PATH système.
+  - Le chemin est généralement : `C:\msys64\mingw64\bin`.
+  - Cherchez "Modifier les variables d'environnement système" dans le menu Démarrer, cliquez sur "Variables d'environnement...", sélectionnez la variable "Path" dans la section "Variables système", cliquez sur "Modifier...", puis "Nouveau", et collez le chemin.
+
 **2. Installer les Dépendances Python**
 
 Le projet utilise plusieurs bibliothèques Python pour l'interface graphique et la visualisation. Assurez-vous d'avoir Python 3 installé, puis ouvrez une invite de commandes Windows (CMD) ou PowerShell et exécutez la commande suivante :
