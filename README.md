@@ -26,11 +26,12 @@ Ma fondation conceptuelle se base sur l'idée de la **simplicité générant la 
 
 ## 2. ARCHITECTURE TECHNIQUE
 
-Le projet est centré sur un moteur de simulation C++ performant, avec une interface de contrôle et de visualisation unifiée en Python.
+Le projet est une **application C++ unifiée** qui intègre un moteur de simulation performant avec une interface de contrôle et de visualisation 3D en temps réel.
 
-### A. Moteur de Simulation (C++)
+### A. Moteur de Simulation et Interface
 
 *   **Langage :** **C++ Pur.** C'est le choix idéal pour garantir l'optimisation nécessaire à la gestion d'une grande matrice 3D et des calculs intensifs.
+*   **Interface Graphique :** L'application utilise **raylib** pour le rendu 3D et **ImGui** pour l'interface de contrôle, offrant une expérience interactive et en temps réel.
 *   **Structure du Monde :** **Voxel Grid 3D.** L'univers est un espace discret où chaque position est une case unique.
 *   **Performance :** L'algorithme de transition est conçu pour le **parallélisme** (multi-threading avec OpenMP) afin d'utiliser la puissance maximale du processeur.
 
@@ -54,51 +55,44 @@ L'état de chaque Cellule est défini par un ensemble de variables. Ces paramèt
 
 ## 3. COMMENT UTILISER SED-LAB
 
-Le projet a été unifié dans une seule application : **SED-Lab**. Elle gère la configuration, la compilation, l'exécution et la visualisation de manière transparente.
+Le projet a été consolidé en une seule application C++ nommée **SED-Lab**. Elle intègre la simulation, le contrôle des paramètres et la visualisation 3D en temps réel.
 
-### A. Installation des Prérequis
+### A. Installation des Prérequis (Linux/Debian)
 
-#### Pour Windows
-
-1.  **Installer MSYS2 & le Compilateur C++:**
-    - Téléchargez et installez **MSYS2** depuis [msys2.org](https://www.msys2.org/).
-    - Ouvrez le terminal **MSYS2 MinGW 64-bit** et exécutez `pacman -Syu` pour mettre à jour, puis `pacman -S --needed base-devel mingw-w64-x86_64-toolchain make` pour installer les outils de compilation.
-
-2.  **Installer les Dépendances Python:**
-    - Assurez-vous d'avoir Python 3. Ouvrez une invite de commandes (CMD) ou PowerShell et exécutez :
-      ```bash
-      pip install pandas matplotlib natsort imageio dearpygui
-      ```
-
-#### Pour Linux / macOS
-
-1.  **Installer les Outils de Compilation:**
-    - Utilisez votre gestionnaire de paquets (`apt`, `yum`, `brew`, etc.) pour installer `g++`, `make`, `python3` et `pip`.
-
-2.  **Installer les Dépendances Python:**
+1.  **Outils de Compilation :**
     ```bash
-    pip install pandas matplotlib natsort imageio dearpygui
+    sudo apt-get update
+    sudo apt-get install build-essential g++ make
     ```
 
-### B. Lancement de SED-Lab
-
-Il n'est plus nécessaire de compiler manuellement le projet. L'application s'en charge pour vous.
-
-1.  **Ouvrez un terminal** à la racine du projet.
-    - *Note pour Windows :* Utilisez un terminal standard (CMD ou PowerShell), **pas** le terminal MSYS2, pour lancer l'application Python.
-2.  **Exécutez la commande suivante :**
+2.  **Dépendances Graphiques (raylib & OpenGL) :**
+    Le projet nécessite les bibliothèques de développement pour raylib et ses dépendances.
     ```bash
-    python3 sed_lab.py
+    sudo apt-get install libraylib-dev libgl1-mesa-dev libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev
+    ```
+    Si `libraylib-dev` n'est pas disponible, il faudra la compiler depuis les sources.
+
+### B. Compilation et Lancement
+
+1.  **Compiler le projet :**
+    Ouvrez un terminal à la racine du projet et exécutez la commande `make`.
+    ```bash
+    make
+    ```
+    Cela va compiler le projet et créer un exécutable nommé `sed_lab`.
+
+2.  **Lancer l'application :**
+    Pour lancer la simulation, utilisez la commande `make run`.
+    ```bash
+    make run
     ```
 
 ### C. Utilisation de l'Interface
 
-1.  **Configurer :** Utilisez les panneaux de gauche pour ajuster les paramètres de la simulation et les constantes des lois physiques.
-2.  **Lancer :** Cliquez sur le bouton **"Lancer le Cycle Complet"**.
-3.  **Observer :** L'application va automatiquement :
-    - **Compiler** le moteur C++ en arrière-plan.
-    - **Exécuter** la simulation avec les paramètres choisis.
-    - **Générer** l'animation GIF à partir des données de sortie.
-    - **Afficher** un aperçu de l'animation directement dans l'interface.
-
-Le GIF final est sauvegardé dans le dossier `visualisations/`.
+1.  **Configurer :** Utilisez le panneau de contrôle ImGui pour ajuster les paramètres de la simulation en temps réel.
+2.  **Initialiser/Démarrer :**
+    - Cliquez sur **"Initialiser/Réinitialiser"** pour créer un nouveau monde avec les paramètres actuels.
+    - Cliquez sur **"Démarrer"** pour lancer la simulation. Vous pouvez la mettre en pause à tout moment.
+3.  **Observer :** La visualisation 3D montre l'état du monde en temps réel.
+    - La **couleur** des cellules représente leur énergie.
+    - La **taille** des cellules représente leur charge émotionnelle.

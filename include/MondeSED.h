@@ -101,6 +101,8 @@ public:
     int getTailleX() const { return size_x; }
     int getTailleY() const { return size_y; }
     int getTailleZ() const { return size_z; }
+    int getCycleActuel() const { return cycle_actuel; }
+    int getNombreCellulesVivantes() const;
 
 private:
     int size_x, size_y, size_z;

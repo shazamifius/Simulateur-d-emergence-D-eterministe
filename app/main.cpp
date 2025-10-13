@@ -2,10 +2,12 @@
 #include "imgui.h"
 #include "raylib.h"
 #include "rlgl.h"
-#include "imgui_impl_raylib.h"
+#include "rlImGui.h"
 #include "MondeSED.h"
 #include <iostream>
 #include <memory>
+#include <algorithm> // Pour std::max
+#include <cmath>     // Pour fmod
 
 // --- Variables globales ---
 std::unique_ptr<MondeSED> monde;
@@ -32,8 +34,7 @@ int main() {
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
     ImGui::StyleColorsDark();
-    ImGui_ImplRaylib_Init();
-    ImGui_ImplRaylib_LoadDefaultFont();
+    rlImGuiSetup(true);
 
     Camera3D camera = { 0 };
     camera.position = (Vector3){ 30.0f, 30.0f, 30.0f };
@@ -60,16 +61,14 @@ int main() {
         DrawGrid(40, 1.0f);
         EndMode3D();
 
-        ImGui_ImplRaylib_NewFrame();
-        ImGui::NewFrame();
+        rlImGuiBegin();
         DrawUI();
-        ImGui::Render();
-        ImGui_ImplRaylib_RenderDrawData(ImGui::GetDrawData());
+        rlImGuiEnd();
 
         EndDrawing();
     }
 
-    ImGui_ImplRaylib_Shutdown();
+    rlImGuiShutdown();
     ImGui::DestroyContext();
     CloseWindow();
 
@@ -95,6 +94,13 @@ void DrawUI() {
     }
     ImGui::SliderFloat("Densité Initiale", &sim_density, 0.0f, 1.0f, "%.2f");
     ImGui::SliderInt("Cycles par Frame", &sim_cycles_per_frame, 1, 100);
+
+    ImGui::Separator();
+
+    if (monde) {
+        ImGui::Text("Cycle: %d", monde->getCycleActuel());
+        ImGui::Text("Cellules vivantes: %d", monde->getNombreCellulesVivantes());
+    }
 
     ImGui::Separator();
 
@@ -129,8 +135,60 @@ void DrawUI() {
     }
 
     ImGui::End();
+
+    ImGui::SetNextWindowPos(ImVec2(10, GetScreenHeight() - 110), ImGuiCond_Always);
+    ImGui::SetNextWindowSize(ImVec2(250, 100), ImGuiCond_Always);
+    ImGui::Begin("Légende", nullptr, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse);
+    ImGui::Text("Couleur = Énergie (Bleu -> Rouge)");
+    ImGui::Text("Taille = Charge (Petit -> Grand)");
+    ImGui::End();
 }
 
+#include <algorithm> // Pour std::max
+#include <cmath>     // Pour fmod
+
 void Draw3DVisualization(Camera& camera) {
-    // Logique de visualisation 3D à implémenter ici
+    // --- Pre-calcul pour la normalisation ---
+    float max_e = 0.0f;
+    float max_c = 0.0f;
+    const auto& grille = monde->getGrille();
+
+    for (const auto& cellule : grille) {
+        if (cellule.is_alive) {
+            if (cellule.E > max_e) max_e = cellule.E;
+            if (cellule.C > max_c) max_c = cellule.C;
+        }
+    }
+    // Pour éviter la division par zéro
+    if (max_e == 0.0f) max_e = 1.0f;
+    if (max_c == 0.0f) max_c = 1.0f;
+
+
+    // --- Rendu des cellules ---
+    int size_x = monde->getTailleX();
+    int size_y = monde->getTailleY();
+    int size_z = monde->getTailleZ();
+
+    for (int i = 0; i < grille.size(); ++i) {
+        const auto& cellule = grille[i];
+        if (cellule.is_alive) {
+            // Recalculer les coordonnées 3D à partir de l'index 1D
+            int x = i % size_x;
+            int y = (i / size_x) % size_y;
+            int z = i / (size_x * size_y);
+
+            // Position de la sphère
+            Vector3 position = {(float)x, (float)y, (float)z};
+
+            // La taille est basée sur la Charge (C)
+            float radius = 0.1f + (cellule.C / max_c) * 0.5f;
+
+            // La couleur est basée sur l'Énergie (E)
+            // Utilise une transition de couleur HSV (Teinte) de bleu (240) à rouge (0)
+            float hue = 240.0f - (cellule.E / max_e) * 240.0f;
+            Color color = ColorFromHSV(hue, 0.85f, 0.95f);
+
+            DrawSphere(position, radius, color);
+        }
+    }
 }
