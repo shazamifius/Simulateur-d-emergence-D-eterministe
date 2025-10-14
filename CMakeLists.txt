@@ -4,13 +4,16 @@ project(SED_LAB CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# --- Raylib Submodule ---
-# Instruct the raylib build system to not build the examples, and build as a static library.
-set(BUILD_EXAMPLES OFF CACHE BOOL "Build raylib examples" FORCE)
-set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build raylib as a shared library" FORCE)
-# Add the raylib submodule directory to the build.
-# This will find its own CMakeLists.txt and create the 'raylib' target.
-add_subdirectory(libs/raylib)
+# --- Raylib Dependency ---
+# Find the raylib package. With the vcpkg toolchain file,
+# CMake will automatically find the raylib installed by vcpkg.
+find_package(raylib CONFIG REQUIRED)
+
+# The following lines are commented out as they are related to the git submodule approach,
+# which is replaced by the vcpkg dependency management.
+# set(BUILD_EXAMPLES OFF CACHE BOOL "Build raylib examples" FORCE)
+# set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build raylib as a shared library" FORCE)
+# add_subdirectory(libs/raylib)
 
 # Find OpenMP for parallelism
 find_package(OpenMP REQUIRED)

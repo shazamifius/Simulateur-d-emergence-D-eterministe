@@ -1,109 +1,104 @@
-# Guide d'Installation pour Windows
+# Guide d'Installation Détaillé pour Windows
 
-Ce guide vous expliquera comment compiler et lancer le projet **SED-Lab** sur un environnement Windows. La méthode recommandée utilise le compilateur MSVC (inclus avec Visual Studio), le gestionnaire de paquets `vcpkg` pour les dépendances, et CMake pour la compilation.
+Ce guide vous expliquera comment compiler et lancer le projet **SED-Lab** sur un environnement Windows. La méthode recommandée utilise le compilateur MSVC (inclus avec Visual Studio) et le gestionnaire de paquets `vcpkg` pour les dépendances.
 
 ---
 
-## 1. Prérequis Essentiels
+## 1. Prérequis : Installer les Outils
 
-Avant de commencer, vous devez installer les outils suivants :
+Avant de commencer, vous devez installer les outils suivants.
 
-### A. Visual Studio 2022
+### A. Git (Contrôle de version)
 
-Visual Studio fournit le compilateur C++ (MSVC), CMake, et Git, qui sont tous nécessaires pour ce projet.
+Si vous ne l'avez pas, téléchargez et installez Git pour Windows.
+- **Lien :** [git-scm.com/download/win](https://git-scm.com/download/win)
+
+### B. Visual Studio 2022 Community
+
+Visual Studio fournit le compilateur C++ (MSVC) et les outils de build nécessaires.
 
 1.  **Téléchargez Visual Studio Community :**
-    Rendez-vous sur la [page de téléchargement de Visual Studio](https://visualstudio.microsoft.com/downloads/) et téléchargez "Visual Studio Community 2022". C'est gratuit pour les développeurs individuels et les projets open-source.
+    Rendez-vous sur la [page de téléchargement de Visual Studio](https://visualstudio.microsoft.com/downloads/) et téléchargez **"Visual Studio Community 2022"**. C'est gratuit pour les développeurs individuels.
 
 2.  **Installez la charge de travail C++ :**
-    Lors de l'installation, sélectionnez la charge de travail **"Développement Desktop en C++"**. Assurez-vous que les composants suivants sont cochés sur le panneau de droite :
-    *   **MSVC v143 - VS 2022 C++ x64/x86 build tools** (ou une version plus récente)
-    *   **Windows 11 SDK** (ou une version pour votre OS)
-    *   **CMake**
-    *   **Git for Windows**
+    Pendant l'installation, sélectionnez la charge de travail **"Développement Desktop en C++"**. Assurez-vous que les composants suivants sont cochés sur le panneau de droite :
+    *   **MSVC v143 - VS 2022 C++ x64/x86 build tools** (ou plus récent)
+    *   **Windows 11 SDK** (ou la version pour votre OS)
 
-### B. vcpkg (Gestionnaire de Dépendances)
+---
 
-`vcpkg` est un gestionnaire de paquets de Microsoft qui simplifie grandement l'installation des bibliothèques C++ comme `raylib`.
+## 2. Installation des Dépendances avec vcpkg
 
-1.  **Ouvrez une invite de commandes :**
-    Ouvrez `PowerShell` ou `CMD`.
+`vcpkg` est un gestionnaire de paquets qui simplifie l'installation des bibliothèques C++ comme `raylib`.
+
+1.  **Ouvrez une invite de commandes (`cmd` ou `PowerShell`).**
 
 2.  **Clonez le dépôt de vcpkg :**
-    Nous vous recommandons de le cloner dans un chemin simple (par exemple, `C:\vcpkg`).
+    Nous recommandons un chemin simple, par exemple `C:\dev\vcpkg`.
     ```bash
-    git clone https://github.com/Microsoft/vcpkg.git C:\vcpkg
+    git clone https://github.com/Microsoft/vcpkg.git C:\dev\vcpkg
     ```
 
 3.  **Installez vcpkg :**
-    Exécutez le script de bootstrap.
     ```bash
-    cd C:\vcpkg
+    cd C:\dev\vcpkg
     .\bootstrap-vcpkg.bat
     ```
 
-4.  **Intégrez vcpkg avec votre système (très important) :**
-    Cette commande permet à CMake de trouver automatiquement les bibliothèques installées par `vcpkg`.
+4.  **Installez raylib pour une architecture 64-bit :**
+    Cette commande va télécharger, compiler et installer `raylib`. Cela peut prendre plusieurs minutes.
     ```bash
-    .\vcpkg.exe integrate install
+    .\vcpkg.exe install raylib:x64-windows
     ```
-
----
-
-## 2. Installation des Dépendances
-
-Maintenant que `vcpkg` est prêt, utilisez-le pour installer `raylib`.
-
-1.  **Ouvrez une invite de commandes (`PowerShell` ou `CMD`).**
-
-2.  **Installez raylib pour une architecture 64-bit :**
-    ```bash
-    C:\vcpkg\vcpkg.exe install raylib:x64-windows
-    ```
-    L'installation peut prendre quelques minutes, car `vcpkg` va télécharger, compiler et installer la bibliothèque pour vous.
+    *Note : L'ancienne commande `integrate install` n'est plus recommandée. Nous spécifierons le chemin vers vcpkg directement lors de la compilation.*
 
 ---
 
 ## 3. Compilation et Lancement du Projet
 
-Le projet utilise CMake, ce qui le rend compatible avec de nombreux environnements de développement.
+Maintenant que tous les outils sont prêts, nous pouvons compiler le simulateur.
 
-### A. Cloner le Projet SED-Lab
-
-Si ce n'est pas déjà fait, clonez le dépôt du projet :
-```bash
-git clone <URL_DU_PROJET_SED_LAB>
-cd <NOM_DU_DOSSIER_DU_PROJET>
-```
-
-### B. Compiler avec CMake
-
-1.  **Créez un dossier de build :**
-    C'est une bonne pratique de séparer les fichiers de compilation des fichiers sources.
+1.  **Clonez le projet SED-Lab :**
+    Si ce n'est pas déjà fait, clonez le dépôt du projet dans un dossier de votre choix (par exemple, `C:\dev\SED`).
     ```bash
+    git clone https://github.com/votre-utilisateur/Simulateur-d-emergence-D-eterministe.git C:\dev\SED
+    cd C:\dev\SED
+    ```
+    *(Remplacez l'URL par celle de votre dépôt si nécessaire.)*
+
+2.  **Ouvrez l'Invite de Commandes Développeur de Visual Studio :**
+    C'est l'étape la plus importante pour éviter les erreurs de compilateur. Cherchez dans le menu Démarrer :
+    `x64 Native Tools Command Prompt for VS 2022`
+    Lancez-le. Une nouvelle fenêtre de terminal s'ouvrira, préconfigurée pour utiliser les outils de Visual Studio.
+
+3.  **Naviguez jusqu'au dossier du projet dans ce nouveau terminal :**
+    ```cmd
+    cd C:\dev\SED
+    ```
+
+4.  **Créez un dossier de build et compilez :**
+    Exécutez les commandes suivantes une par une.
+    ```cmd
     mkdir build
     cd build
     ```
 
-2.  **Générez les fichiers de projet avec CMake :**
-    CMake va détecter automatiquement les bibliothèques installées via `vcpkg`.
-    ```bash
-    cmake ..
+5.  **Configurez le projet avec CMake (L'étape clé) :**
+    Cette commande indique à CMake où trouver les bibliothèques de `vcpkg`.
+    ```cmd
+    cmake .. -DCMAKE_TOOLCHAIN_FILE=C:/dev/vcpkg/scripts/buildsystems/vcpkg.cmake
     ```
-    Si tout se passe bien, CMake générera une solution Visual Studio (`.sln`) dans le dossier `build`.
+    *(Adaptez le chemin si vous avez installé vcpkg ailleurs.)*
 
-3.  **Compilez le projet :**
-    Vous pouvez soit ouvrir la solution `.sln` avec Visual Studio et compiler depuis l'interface, soit utiliser CMake directement depuis la ligne de commande :
-    ```bash
+6.  **Compilez le projet :**
+    ```cmd
     cmake --build .
     ```
-    Un exécutable `sed_lab.exe` sera créé dans le dossier `build\Debug`.
+    L'exécutable `sed_lab.exe` sera créé dans le dossier `build\Debug`.
 
-### C. Lancer l'Application
-
-Une fois la compilation terminée, vous pouvez lancer l'exécutable :
-```bash
-.\Debug\sed_lab.exe
-```
+7.  **Lancez l'Application :**
+    ```cmd
+    .\Debug\sed_lab.exe
+    ```
 
 Vous devriez maintenant voir la fenêtre de l'application SED-Lab s'ouvrir.

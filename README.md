@@ -79,7 +79,7 @@ Pour les instructions détaillées sur la compilation et l'installation sur Wind
 
 ### C. Compilation et Lancement (avec CMake)
 
-Le projet utilise maintenant CMake pour une compilation multiplateforme.
+Quelle que soit votre plateforme, la compilation se fait en 3 étapes :
 
 1.  **Créez un dossier de build :**
     ```bash
@@ -87,18 +87,24 @@ Le projet utilise maintenant CMake pour une compilation multiplateforme.
     cd build
     ```
 
-2.  **Générez les fichiers de build et compilez :**
-    ```bash
-    cmake ..
-    make
-    ```
-    Cela va compiler le projet et créer un exécutable nommé `sed_lab` dans le dossier `build`.
+2.  **Configurez le projet avec CMake :**
+    -   **Pour Linux :**
+        ```bash
+        cmake ..
+        ```
+    -   **Pour Windows (avec vcpkg) :** Référez-vous aux instructions détaillées dans **[INSTRUCTIONS_WINDOWS.md](./INSTRUCTIONS_WINDOWS.md)**. La commande ressemblera à :
+        ```cmd
+        cmake .. -DCMAKE_TOOLCHAIN_FILE=[CHEMIN_VERS_VOTRE_VCPKG]/scripts/buildsystems/vcpkg.cmake
+        ```
 
-3.  **Lancer l'application :**
-    Depuis le dossier `build`, exécutez :
+3.  **Compilez le projet :**
     ```bash
-    ./sed_lab
+    cmake --build .
     ```
+    Cette commande fonctionne sur toutes les plateformes et utilisera le système de build approprié (Make, Ninja, MSBuild, etc.). L'exécutable `sed_lab` sera créé dans le dossier `build` (ou un sous-dossier comme `build/Debug`).
+
+4.  **Lancer l'application :**
+    Depuis le dossier de build, lancez l'exécutable.
 
 ### C. Utilisation de l'Interface
 
