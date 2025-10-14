@@ -100,7 +100,11 @@ int main() {
             cell_is_selected = hit_found;
         }
 
-        UpdateCamera(&camera, CAMERA_ORBITAL);
+        // Mise à jour de la caméra uniquement si l'interface ImGui ne capture pas la souris
+        if (!ImGui::GetIO().WantCaptureMouse)
+        {
+            UpdateCamera(&camera, CAMERA_ORBITAL);
+        }
 
         BeginDrawing();
         ClearBackground(Color{20, 20, 20, 255});
@@ -152,7 +156,16 @@ void DrawUI() {
                 if (simulation_running) {
                     if (ImGui::Button("Pause", ImVec2(-1, 0))) simulation_running = false;
                 } else {
-                    if (ImGui::Button("Démarrer", ImVec2(-1, 0))) simulation_running = true;
+                    float button_width = ImGui::GetContentRegionAvail().x * 0.5f - ImGui::GetStyle().ItemSpacing.x * 0.5f;
+                    if (ImGui::Button("Démarrer", ImVec2(button_width, 0))) simulation_running = true;
+                    ImGui::SameLine();
+                    if (ImGui::Button("Step", ImVec2(button_width, 0))) {
+                        monde->AvancerTemps();
+                        cell_count_history.push_back(static_cast<float>(monde->getNombreCellulesVivantes()));
+                        if (cell_count_history.size() > 500) {
+                            cell_count_history.erase(cell_count_history.begin());
+                        }
+                    }
                 }
             }
 
