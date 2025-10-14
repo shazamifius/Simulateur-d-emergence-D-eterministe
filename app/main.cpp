@@ -8,10 +8,12 @@
 #include <memory>
 #include <algorithm> // Pour std::max
 #include <cmath>     // Pour fmod
+#include <vector>
 
 // --- Variables globales ---
 std::unique_ptr<MondeSED> monde;
 bool simulation_running = false;
+std::vector<float> cell_count_history; // Pour le graphique de l'historique
 
 // --- Paramètres de simulation configurables via l'UI ---
 static int sim_size[3] = {16, 16, 16};
@@ -48,6 +50,11 @@ int main() {
             for(int i = 0; i < sim_cycles_per_frame; ++i) {
                 monde->AvancerTemps();
             }
+            // --- Enregistrement de l'historique pour le graphique ---
+            cell_count_history.push_back(static_cast<float>(monde->getNombreCellulesVivantes()));
+            if (cell_count_history.size() > 500) {
+                cell_count_history.erase(cell_count_history.begin());
+            }
         }
         UpdateCamera(&camera, CAMERA_ORBITAL);
 
@@ -79,59 +86,92 @@ void ResetSimulation() {
     monde = std::make_unique<MondeSED>(sim_size[0], sim_size[1], sim_size[2]);
     monde->InitialiserMonde(sim_density);
     simulation_running = false;
+    cell_count_history.clear();
 }
 
 void DrawUI() {
-    ImGui::Begin("Contrôles", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+    ImGui::Begin("Panneau de Contrôle", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
 
-    ImGui::Text("Configuration");
-    ImGui::Separator();
-    if (ImGui::InputInt3("Taille Grille", sim_size)) {
-        // Clamp values to be at least 1
-        sim_size[0] = std::max(1, sim_size[0]);
-        sim_size[1] = std::max(1, sim_size[1]);
-        sim_size[2] = std::max(1, sim_size[2]);
-    }
-    ImGui::SliderFloat("Densité Initiale", &sim_density, 0.0f, 1.0f, "%.2f");
-    ImGui::SliderInt("Cycles par Frame", &sim_cycles_per_frame, 1, 100);
+    if (ImGui::BeginTabBar("MainTabBar")) {
 
-    ImGui::Separator();
-
-    if (monde) {
-        ImGui::Text("Cycle: %d", monde->getCycleActuel());
-        ImGui::Text("Cellules vivantes: %d", monde->getNombreCellulesVivantes());
-    }
-
-    ImGui::Separator();
-
-    if (ImGui::Button("Initialiser/Réinitialiser", ImVec2(-1, 0))) {
-        ResetSimulation();
-    }
-
-    if (monde) {
-        if (simulation_running) {
-            if (ImGui::Button("Pause", ImVec2(-1, 0))) {
-                simulation_running = false;
+        if (ImGui::BeginTabItem("Contrôle")) {
+            ImGui::SeparatorText("Actions");
+            if (ImGui::Button("Initialiser/Réinitialiser", ImVec2(-1, 0))) {
+                ResetSimulation();
             }
-        } else {
-            if (ImGui::Button("Démarrer", ImVec2(-1, 0))) {
-                simulation_running = true;
+            if (monde) {
+                if (simulation_running) {
+                    if (ImGui::Button("Pause", ImVec2(-1, 0))) simulation_running = false;
+                } else {
+                    if (ImGui::Button("Démarrer", ImVec2(-1, 0))) simulation_running = true;
+                }
             }
+
+            ImGui::SeparatorText("Gestion de l'État");
+            if (monde) {
+                float button_width = ImGui::GetContentRegionAvail().x * 0.5f - ImGui::GetStyle().ItemSpacing.x * 0.5f;
+                if (ImGui::Button("Sauvegarder", ImVec2(button_width, 0))) {
+                    monde->SauvegarderEtat("simulation_state.sed");
+                }
+                ImGui::SameLine();
+                if (ImGui::Button("Charger", ImVec2(button_width, 0))) {
+                    simulation_running = false;
+                    monde->ChargerEtat("simulation_state.sed");
+                    cell_count_history.clear();
+                }
+            }
+
+            ImGui::SeparatorText("Statistiques");
+             if (monde) {
+                ImGui::Text("Cycle: %d", monde->getCycleActuel());
+                ImGui::Text("Cellules vivantes: %d", monde->getNombreCellulesVivantes());
+                if (!cell_count_history.empty()) {
+                    ImGui::Text("Historique du nombre de cellules :");
+                    ImGui::PlotLines("##cell_history", cell_count_history.data(), cell_count_history.size(), 0, nullptr, 0.0f, FLT_MAX, ImVec2(0, 80));
+                }
+            }
+            ImGui::EndTabItem();
         }
-    }
 
-    if (monde && ImGui::CollapsingHeader("Paramètres Avancés des Lois")) {
-        auto& params = monde->params;
-        ImGui::SliderFloat("K_E (Attraction Énergie)", &params.K_E, 0.0f, 5.0f);
-        ImGui::SliderFloat("K_D (Motivation Faim)", &params.K_D, 0.0f, 5.0f);
-        ImGui::SliderFloat("K_C (Aversion Stress)", &params.K_C, 0.0f, 5.0f);
-        ImGui::SliderFloat("Seuil Énergie Division", &params.SEUIL_ENERGIE_DIVISION, 0.1f, 5.0f);
-        ImGui::SliderFloat("Facteur Échange Énergie", &params.FACTEUR_ECHANGE_ENERGIE, 0.0f, 0.5f, "%.3f");
-        ImGui::SliderFloat("Seuil Diff. Énergie", &params.SEUIL_DIFFERENCE_ENERGIE, 0.0f, 1.0f);
-        ImGui::SliderFloat("Seuil Similarité R", &params.SEUIL_SIMILARITE_R, 0.0f, 1.0f);
-        ImGui::SliderFloat("Taux Augmentation Ennui", &params.TAUX_AUGMENTATION_ENNUI, 0.0f, 0.01f, "%.4f");
-        ImGui::SliderFloat("Facteur Échange Psychique", &params.FACTEUR_ECHANGE_PSYCHIQUE, 0.0f, 0.5f);
-        ImGui::SliderFloat("K_M (Influence Mémoire)", &params.K_M, 0.0f, 5.0f);
+        if (ImGui::BeginTabItem("Configuration")) {
+            ImGui::SeparatorText("Taille du Monde");
+             if (ImGui::InputInt3("Taille Grille", sim_size)) {
+                sim_size[0] = std::max(1, sim_size[0]);
+                sim_size[1] = std::max(1, sim_size[1]);
+                sim_size[2] = std::max(1, sim_size[2]);
+            }
+            ImGui::SeparatorText("Conditions Initiales");
+            ImGui::SliderFloat("Densité Initiale", &sim_density, 0.0f, 1.0f, "%.2f");
+
+            ImGui::SeparatorText("Performance");
+            ImGui::SliderInt("Cycles par Frame", &sim_cycles_per_frame, 1, 100);
+            ImGui::EndTabItem();
+        }
+
+        if (monde && ImGui::BeginTabItem("Paramètres")) {
+             auto& params = monde->params;
+            ImGui::SeparatorText("Loi 1: Mouvement");
+            ImGui::SliderFloat("K_E (Attraction Énergie)", &params.K_E, 0.0f, 5.0f);
+            ImGui::SliderFloat("K_D (Motivation Faim)", &params.K_D, 0.0f, 5.0f);
+            ImGui::SliderFloat("K_C (Aversion Stress)", &params.K_C, 0.0f, 5.0f);
+            ImGui::SliderFloat("K_M (Influence Mémoire)", &params.K_M, 0.0f, 5.0f);
+
+            ImGui::SeparatorText("Loi 2: Division");
+            ImGui::SliderFloat("Seuil Énergie Division", &params.SEUIL_ENERGIE_DIVISION, 0.1f, 5.0f);
+
+            ImGui::SeparatorText("Loi 4: Échange Énergétique");
+            ImGui::SliderFloat("Facteur Échange Énergie", &params.FACTEUR_ECHANGE_ENERGIE, 0.0f, 0.5f, "%.3f");
+            ImGui::SliderFloat("Seuil Diff. Énergie", &params.SEUIL_DIFFERENCE_ENERGIE, 0.0f, 1.0f);
+            ImGui::SliderFloat("Seuil Similarité R", &params.SEUIL_SIMILARITE_R, 0.0f, 1.0f);
+
+            ImGui::SeparatorText("Loi 5: Interaction Psychique");
+            ImGui::SliderFloat("Taux Augmentation Ennui", &params.TAUX_AUGMENTATION_ENNUI, 0.0f, 0.01f, "%.4f");
+            ImGui::SliderFloat("Facteur Échange Psychique", &params.FACTEUR_ECHANGE_PSYCHIQUE, 0.0f, 0.5f);
+
+            ImGui::EndTabItem();
+        }
+
+        ImGui::EndTabBar();
     }
 
     ImGui::End();

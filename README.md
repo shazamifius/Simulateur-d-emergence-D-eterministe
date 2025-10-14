@@ -57,34 +57,47 @@ L'état de chaque Cellule est défini par un ensemble de variables. Ces paramèt
 
 Le projet a été consolidé en une seule application C++ nommée **SED-Lab**. Elle intègre la simulation, le contrôle des paramètres et la visualisation 3D en temps réel.
 
-### A. Installation des Prérequis (Linux/Debian)
+### A. Installation sur Windows
+
+Pour les instructions détaillées sur la compilation et l'installation sur Windows, veuillez consulter le guide dédié :
+➡️ **[Instructions pour Windows](./INSTRUCTIONS_WINDOWS.md)**
+
+### B. Installation sur Linux (Debian/Ubuntu)
 
 1.  **Outils de Compilation :**
     ```bash
     sudo apt-get update
-    sudo apt-get install build-essential g++ make
+    sudo apt-get install build-essential g++ cmake
     ```
 
 2.  **Dépendances Graphiques (raylib & OpenGL) :**
     Le projet nécessite les bibliothèques de développement pour raylib et ses dépendances.
     ```bash
-    sudo apt-get install libraylib-dev libgl1-mesa-dev libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev
+    sudo apt-get install libgl1-mesa-dev libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev
     ```
-    Si `libraylib-dev` n'est pas disponible, il faudra la compiler depuis les sources.
+    Note : `raylib` sera compilé localement si `libraylib-dev` n'est pas disponible.
 
-### B. Compilation et Lancement
+### C. Compilation et Lancement (avec CMake)
 
-1.  **Compiler le projet :**
-    Ouvrez un terminal à la racine du projet et exécutez la commande `make`.
+Le projet utilise maintenant CMake pour une compilation multiplateforme.
+
+1.  **Créez un dossier de build :**
     ```bash
+    mkdir build
+    cd build
+    ```
+
+2.  **Générez les fichiers de build et compilez :**
+    ```bash
+    cmake ..
     make
     ```
-    Cela va compiler le projet et créer un exécutable nommé `sed_lab`.
+    Cela va compiler le projet et créer un exécutable nommé `sed_lab` dans le dossier `build`.
 
-2.  **Lancer l'application :**
-    Pour lancer la simulation, utilisez la commande `make run`.
+3.  **Lancer l'application :**
+    Depuis le dossier `build`, exécutez :
     ```bash
-    make run
+    ./sed_lab
     ```
 
 ### C. Utilisation de l'Interface
