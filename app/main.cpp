@@ -1,6 +1,7 @@
 // --- Fichiers d'en-tête ---
 #include "imgui.h"
 #include "raylib.h"
+#include "raymath.h"
 #include "rlgl.h"
 #include "rlImGui.h"
 #include "MondeSED.h"
@@ -39,7 +40,64 @@ int main() {
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
-    ImGui::StyleColorsDark();
+    // ImGui::StyleColorsDark(); // Remplacé par un thème personnalisé ci-dessous
+
+    // Thème personnalisé pour une meilleure lisibilité (gris, blanc, noir)
+    ImGuiStyle& style = ImGui::GetStyle();
+    style.WindowRounding = 5.0f;
+    style.FrameRounding = 3.0f;
+    style.GrabRounding = 3.0f;
+
+    ImVec4* colors = style.Colors;
+    colors[ImGuiCol_Text]                   = ImVec4(1.00f, 1.00f, 1.00f, 1.00f);
+    colors[ImGuiCol_TextDisabled]           = ImVec4(0.50f, 0.50f, 0.50f, 1.00f);
+    colors[ImGuiCol_WindowBg]               = ImVec4(0.18f, 0.18f, 0.18f, 0.94f);
+    colors[ImGuiCol_ChildBg]                = ImVec4(0.18f, 0.18f, 0.18f, 0.00f);
+    colors[ImGuiCol_PopupBg]                = ImVec4(0.08f, 0.08f, 0.08f, 0.94f);
+    colors[ImGuiCol_Border]                 = ImVec4(0.43f, 0.43f, 0.50f, 0.50f);
+    colors[ImGuiCol_BorderShadow]           = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
+    colors[ImGuiCol_FrameBg]                = ImVec4(0.30f, 0.30f, 0.30f, 0.54f);
+    colors[ImGuiCol_FrameBgHovered]         = ImVec4(0.40f, 0.40f, 0.40f, 0.40f);
+    colors[ImGuiCol_FrameBgActive]          = ImVec4(0.45f, 0.45f, 0.45f, 0.67f);
+    colors[ImGuiCol_TitleBg]                = ImVec4(0.04f, 0.04f, 0.04f, 1.00f);
+    colors[ImGuiCol_TitleBgActive]          = ImVec4(0.29f, 0.29f, 0.29f, 1.00f);
+    colors[ImGuiCol_TitleBgCollapsed]       = ImVec4(0.00f, 0.00f, 0.00f, 0.51f);
+    colors[ImGuiCol_MenuBarBg]              = ImVec4(0.14f, 0.14f, 0.14f, 1.00f);
+    colors[ImGuiCol_ScrollbarBg]            = ImVec4(0.02f, 0.02f, 0.02f, 0.53f);
+    colors[ImGuiCol_ScrollbarGrab]          = ImVec4(0.31f, 0.31f, 0.31f, 1.00f);
+    colors[ImGuiCol_ScrollbarGrabHovered]   = ImVec4(0.41f, 0.41f, 0.41f, 1.00f);
+    colors[ImGuiCol_ScrollbarGrabActive]    = ImVec4(0.51f, 0.51f, 0.51f, 1.00f);
+    colors[ImGuiCol_CheckMark]              = ImVec4(0.94f, 0.94f, 0.94f, 1.00f);
+    colors[ImGuiCol_SliderGrab]             = ImVec4(0.51f, 0.51f, 0.51f, 1.00f);
+    colors[ImGuiCol_SliderGrabActive]       = ImVec4(0.86f, 0.86f, 0.86f, 1.00f);
+    colors[ImGuiCol_Button]                 = ImVec4(0.44f, 0.44f, 0.44f, 0.40f);
+    colors[ImGuiCol_ButtonHovered]          = ImVec4(0.46f, 0.47f, 0.48f, 1.00f);
+    colors[ImGuiCol_ButtonActive]           = ImVec4(0.42f, 0.42f, 0.42f, 1.00f);
+    colors[ImGuiCol_Header]                 = ImVec4(0.35f, 0.35f, 0.35f, 0.31f);
+    colors[ImGuiCol_HeaderHovered]          = ImVec4(0.45f, 0.45f, 0.45f, 0.80f);
+    colors[ImGuiCol_HeaderActive]           = ImVec4(0.47f, 0.47f, 0.47f, 1.00f);
+    colors[ImGuiCol_Separator]              = colors[ImGuiCol_Border];
+    colors[ImGuiCol_SeparatorHovered]       = ImVec4(0.75f, 0.75f, 0.75f, 0.78f);
+    colors[ImGuiCol_SeparatorActive]        = ImVec4(0.75f, 0.75f, 0.75f, 1.00f);
+    colors[ImGuiCol_ResizeGrip]             = ImVec4(0.26f, 0.59f, 0.98f, 0.25f);
+    colors[ImGuiCol_ResizeGripHovered]      = ImVec4(0.26f, 0.59f, 0.98f, 0.67f);
+    colors[ImGuiCol_ResizeGripActive]       = ImVec4(0.26f, 0.59f, 0.98f, 0.95f);
+    colors[ImGuiCol_Tab]                    = ImVec4(0.30f, 0.30f, 0.30f, 0.86f);
+    colors[ImGuiCol_TabHovered]             = ImVec4(0.40f, 0.40f, 0.40f, 0.80f);
+    colors[ImGuiCol_TabActive]              = ImVec4(0.40f, 0.40f, 0.40f, 1.00f);
+    colors[ImGuiCol_TabUnfocused]           = ImVec4(0.15f, 0.15f, 0.15f, 0.97f);
+    colors[ImGuiCol_TabUnfocusedActive]     = ImVec4(0.25f, 0.25f, 0.25f, 1.00f);
+    colors[ImGuiCol_PlotLines]              = ImVec4(0.61f, 0.61f, 0.61f, 1.00f);
+    colors[ImGuiCol_PlotLinesHovered]       = ImVec4(1.00f, 0.43f, 0.35f, 1.00f);
+    colors[ImGuiCol_PlotHistogram]          = ImVec4(0.90f, 0.70f, 0.00f, 1.00f);
+    colors[ImGuiCol_PlotHistogramHovered]   = ImVec4(1.00f, 0.60f, 0.00f, 1.00f);
+    colors[ImGuiCol_TextSelectedBg]         = ImVec4(0.26f, 0.59f, 0.98f, 0.35f);
+    colors[ImGuiCol_DragDropTarget]         = ImVec4(1.00f, 1.00f, 0.00f, 0.90f);
+    colors[ImGuiCol_NavHighlight]           = ImVec4(0.26f, 0.59f, 0.98f, 1.00f);
+    colors[ImGuiCol_NavWindowingHighlight]  = ImVec4(1.00f, 1.00f, 1.00f, 0.70f);
+    colors[ImGuiCol_NavWindowingDimBg]      = ImVec4(0.80f, 0.80f, 0.80f, 0.20f);
+    colors[ImGuiCol_ModalWindowDimBg]       = ImVec4(0.80f, 0.80f, 0.80f, 0.35f);
+
     rlImGuiSetup(true);
 
     Camera3D camera = { 0 };
@@ -100,10 +158,61 @@ int main() {
             cell_is_selected = hit_found;
         }
 
-        // Mise à jour de la caméra uniquement si l'interface ImGui ne capture pas la souris
+        // --- Contrôles de Caméra Personnalisés ---
         if (!ImGui::GetIO().WantCaptureMouse)
         {
-            UpdateCamera(&camera, CAMERA_ORBITAL);
+            // Zoom avec la molette de la souris
+            float wheel = GetMouseWheelMove();
+            if (wheel != 0)
+            {
+                Vector3 toTarget = Vector3Subtract(camera.target, camera.position);
+                float distance = Vector3Length(toTarget);
+                distance -= wheel * 2.0f; // Vitesse de zoom
+                if (distance < 2.0f) distance = 2.0f; // Empêche de traverser la cible
+                if (distance > 100.0f) distance = 100.0f; // Distance maximale
+                camera.position = Vector3Add(camera.target, Vector3Scale(Vector3Normalize(Vector3Negate(toTarget)), distance));
+            }
+
+            // Panoramique (déplacement latéral) avec Maj + Clic Molette
+            if (IsMouseButtonDown(MOUSE_BUTTON_MIDDLE) && IsKeyDown(KEY_LEFT_SHIFT))
+            {
+                Vector2 delta = GetMouseDelta();
+                float panSpeed = 0.05f;
+
+                Vector3 forward = Vector3Normalize(Vector3Subtract(camera.target, camera.position));
+                Vector3 right = Vector3Normalize(Vector3CrossProduct(forward, camera.up));
+                Vector3 up = Vector3CrossProduct(right, forward);
+
+                Vector3 panVector = Vector3Add(Vector3Scale(right, -delta.x * panSpeed), Vector3Scale(up, delta.y * panSpeed));
+                camera.target = Vector3Add(camera.target, panVector);
+                camera.position = Vector3Add(camera.position, panVector);
+            }
+            // Orbite (rotation) avec Clic Molette
+            else if (IsMouseButtonDown(MOUSE_BUTTON_MIDDLE))
+            {
+                Vector2 delta = GetMouseDelta();
+                float rotateSpeed = 0.01f;
+
+                Vector3 targetToCam = Vector3Subtract(camera.position, camera.target);
+
+                // Rotation Yaw (autour de l'axe Y du monde)
+                Matrix yawRotation = MatrixRotateY(-delta.x * rotateSpeed);
+                targetToCam = Vector3Transform(targetToCam, yawRotation);
+
+                // Rotation Pitch (autour de l'axe droit de la caméra)
+                Vector3 forward = Vector3Normalize(Vector3Negate(targetToCam));
+                Vector3 right = Vector3Normalize(Vector3CrossProduct(forward, camera.up));
+                Matrix pitchRotation = MatrixRotate(right, -delta.y * rotateSpeed);
+                targetToCam = Vector3Transform(targetToCam, pitchRotation);
+
+                // Appliquer la nouvelle position si elle ne cause pas de "Gimbal Lock"
+                Vector3 newForward = Vector3Normalize(Vector3Negate(targetToCam));
+                float dot = Vector3DotProduct(newForward, camera.up);
+                if (fabs(dot) < 0.995)
+                {
+                    camera.position = Vector3Add(camera.target, targetToCam);
+                }
+            }
         }
 
         BeginDrawing();
