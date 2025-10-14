@@ -4,13 +4,18 @@ project(SED_LAB CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# --- Raylib Submodule ---
+# Instruct the raylib build system to not build the examples, and build as a static library.
+set(BUILD_EXAMPLES OFF CACHE BOOL "Build raylib examples" FORCE)
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build raylib as a shared library" FORCE)
+# Add the raylib submodule directory to the build.
+# This will find its own CMakeLists.txt and create the 'raylib' target.
+add_subdirectory(libs/raylib)
+
 # Find OpenMP for parallelism
 find_package(OpenMP REQUIRED)
 if(OpenMP_FOUND)
     message(STATUS "Found OpenMP, enabling parallel execution.")
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
 endif()
 
 # Define the executable and its source files
@@ -25,26 +30,19 @@ add_executable(sed_lab
     imgui/rlImGui.cpp
 )
 
-# Include directories for headers
+# Include directories for our project's headers
 target_include_directories(sed_lab PUBLIC
     include
     imgui
 )
 
-# Link against raylib and other necessary libraries
-# Note: This assumes raylib is installed in a standard system path.
-# For a more robust setup, a FindRaylib.cmake module would be ideal.
+# Link against the 'raylib' target built from the submodule.
+# This is much more robust. The raylib target will also bring its own dependencies (like GL, X11, etc.)
 target_link_libraries(sed_lab PRIVATE
     raylib
-    GL
-    m
-    pthread
-    dl
-    rt
-    X11
 )
 
-# Add OpenMP flags to the target
+# Add OpenMP flags to our target
 if(OpenMP_FOUND)
     target_link_libraries(sed_lab PRIVATE OpenMP::OpenMP_CXX)
 endif()
