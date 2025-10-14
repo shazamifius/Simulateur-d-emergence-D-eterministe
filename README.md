@@ -1,10 +1,14 @@
-## 🔬 Projet SED : Simulateur d'Émergence Déterministe
+# 🔬 Projet SED : Simulateur d'Émergence Déterministe
+
+---
+
+## 1. Objectif du Projet
 
 Ce projet est une initiative personnelle de recherche-création visant à prouver que la complexité de la vie, de la psyché, et de la stabilité peut **émerger de lois mathématiques déterministes et traçables**. Le **SED** est la construction d'un univers où l'existence d'organismes stables est une nécessité mathématique.
 
 ---
 
-## 1. VISION DU PROJET : L'Émergence par la Loi
+## 2. Vision du Projet : L'Émergence par la Loi
 
 ### A. L'Ambition Fondamentale
 
@@ -24,7 +28,7 @@ Ma fondation conceptuelle se base sur l'idée de la **simplicité générant la 
 
 ---
 
-## 2. ARCHITECTURE TECHNIQUE
+## 3. Architecture Technique
 
 Le projet est une **application C++ unifiée** qui intègre un moteur de simulation performant avec une interface de contrôle et de visualisation 3D en temps réel.
 
@@ -53,9 +57,7 @@ L'état de chaque Cellule est défini par un ensemble de variables. Ces paramèt
 
 ---
 
-## 3. COMMENT UTILISER SED-LAB
-
-Le projet a été consolidé en une seule application C++ nommée **SED-Lab**. Elle intègre la simulation, le contrôle des paramètres et la visualisation 3D en temps réel.
+## 4. Comment Utiliser SED-Lab
 
 ### A. Installation sur Windows
 
@@ -64,54 +66,73 @@ Pour les instructions détaillées sur la compilation et l'installation sur Wind
 
 ### B. Installation sur Linux (Debian/Ubuntu)
 
-1.  **Outils de Compilation :**
+La méthode recommandée utilise le gestionnaire de paquets `vcpkg` pour une gestion des dépendances fiable et multi-plateforme.
+
+1.  **Prérequis : Outils de Compilation**
+    Assurez-vous d'avoir les outils de build essentiels, Git, et les bibliothèques de développement requises par le backend graphique de raylib.
     ```bash
     sudo apt-get update
-    sudo apt-get install build-essential g++ cmake
+    sudo apt-get install build-essential g++ cmake git libxinerama-dev libxcursor-dev xorg-dev libglu1-mesa-dev pkg-config
     ```
 
-2.  **Dépendances Graphiques (raylib & OpenGL) :**
-    Le projet nécessite les bibliothèques de développement pour raylib et ses dépendances.
-    ```bash
-    sudo apt-get install libgl1-mesa-dev libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev
-    ```
-    Note : `raylib` sera compilé localement si `libraylib-dev` n'est pas disponible.
+2.  **Installation des Dépendances avec vcpkg**
+    `vcpkg` simplifie l'installation de bibliothèques C++ comme `raylib`.
 
-### C. Compilation et Lancement (avec CMake)
+    a. **Clonez le dépôt de vcpkg :**
+       Nous recommandons un chemin simple, par exemple `~/vcpkg`.
+       ```bash
+       git clone https://github.com/Microsoft/vcpkg.git ~/vcpkg
+       ```
 
-Quelle que soit votre plateforme, la compilation se fait en 3 étapes :
+    b. **Installez vcpkg :**
+       ```bash
+       cd ~/vcpkg
+       ./bootstrap-vcpkg.sh
+       ```
 
-1.  **Créez un dossier de build :**
-    ```bash
-    mkdir build
-    cd build
-    ```
+    c. **Installez raylib :**
+       Cette commande va télécharger, compiler et installer `raylib`. Cela peut prendre plusieurs minutes.
+       ```bash
+       ./vcpkg install raylib
+       ```
 
-2.  **Configurez le projet avec CMake :**
-    -   **Pour Linux :**
-        ```bash
-        cmake ..
-        ```
-    -   **Pour Windows (avec vcpkg) :** Référez-vous aux instructions détaillées dans **[INSTRUCTIONS_WINDOWS.md](./INSTRUCTIONS_WINDOWS.md)**. La commande ressemblera à :
-        ```cmd
-        cmake .. -DCMAKE_TOOLCHAIN_FILE=[CHEMIN_VERS_VOTRE_VCPKG]/scripts/buildsystems/vcpkg.cmake
-        ```
+3.  **Compilation du Projet**
+    a. **Naviguez vers le dossier du projet :**
+       ```bash
+       cd /chemin/vers/votre/projet/SED-Lab
+       ```
+    b. **Créez un dossier de build :**
+       ```bash
+       mkdir build
+       cd build
+       ```
 
-3.  **Compilez le projet :**
-    ```bash
-    cmake --build .
-    ```
-    Cette commande fonctionne sur toutes les plateformes et utilisera le système de build approprié (Make, Ninja, MSBuild, etc.). L'exécutable `sed_lab` sera créé dans le dossier `build` (ou un sous-dossier comme `build/Debug`).
+    c. **Configurez le projet avec CMake :**
+       Cette commande indique à CMake où trouver les bibliothèques installées par `vcpkg`.
+       ```bash
+       cmake .. -DCMAKE_TOOLCHAIN_FILE=~/vcpkg/scripts/buildsystems/vcpkg.cmake
+       ```
+       *(Adaptez le chemin si vous avez installé vcpkg ailleurs.)*
 
-4.  **Lancer l'application :**
+    d. **Compilez le projet :**
+       ```bash
+       cmake --build .
+       ```
+       L'exécutable `sed_lab` sera créé dans le dossier `build`.
+
+### C. Lancement et Utilisation
+
+1.  **Lancer l'application :**
     Depuis le dossier de build, lancez l'exécutable.
+    ```bash
+    ./sed_lab
+    ```
 
-### C. Utilisation de l'Interface
-
-1.  **Configurer :** Utilisez le panneau de contrôle ImGui pour ajuster les paramètres de la simulation en temps réel.
-2.  **Initialiser/Démarrer :**
-    - Cliquez sur **"Initialiser/Réinitialiser"** pour créer un nouveau monde avec les paramètres actuels.
-    - Cliquez sur **"Démarrer"** pour lancer la simulation. Vous pouvez la mettre en pause à tout moment.
-3.  **Observer :** La visualisation 3D montre l'état du monde en temps réel.
-    - La **couleur** des cellules représente leur énergie.
-    - La **taille** des cellules représente leur charge émotionnelle.
+2.  **Utilisation de l'Interface :**
+    - **Configurer :** Utilisez le panneau de contrôle ImGui pour ajuster les paramètres de la simulation en temps réel.
+    - **Initialiser/Démarrer :**
+        - Cliquez sur **"Initialiser/Réinitialiser"** pour créer un nouveau monde avec les paramètres actuels.
+        - Cliquez sur **"Démarrer"** pour lancer la simulation. Vous pouvez la mettre en pause à tout moment.
+    - **Observer :** La visualisation 3D montre l'état du monde en temps réel.
+        - La **couleur** des cellules représente leur énergie.
+        - La **taille** des cellules représente leur charge émotionnelle.
