@@ -29,8 +29,6 @@ add_executable(sed_lab
 target_include_directories(sed_lab PUBLIC
     include
     imgui
-    /usr/include
-    /usr/local/include
 )
 
 # Link against raylib and other necessary libraries
