@@ -19,6 +19,10 @@ std::vector<float> cell_count_history; // Pour le graphique de l'historique
 static int sim_size[3] = {16, 16, 16};
 static float sim_density = 0.1f;
 static int sim_cycles_per_frame = 1;
+static int sim_seed = 12345; // Graine de simulation
+static bool use_random_seed = true;
+static int selected_cell_coords[3] = {-1, -1, -1}; // Coordonnées de la cellule sélectionnée
+static bool cell_is_selected = false;
 
 // --- Fonctions ---
 void ResetSimulation();
@@ -56,6 +60,46 @@ int main() {
                 cell_count_history.erase(cell_count_history.begin());
             }
         }
+
+        // --- Logique de Sélection de Cellule ---
+        if (monde && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+            Ray ray = GetMouseRay(GetMousePosition(), camera);
+            float closest_collision_dist = FLT_MAX;
+            bool hit_found = false;
+
+            const auto& grille = monde->getGrille();
+            int size_x = monde->getTailleX();
+            int size_y = monde->getTailleY();
+
+            // Normalisation du rayon (identique à Draw3DVisualization)
+            float max_c = 0.0f;
+            for (const auto& cell : grille) {
+                if (cell.is_alive && cell.C > max_c) max_c = cell.C;
+            }
+            if (max_c == 0.0f) max_c = 1.0f;
+
+            for (int i = 0; i < grille.size(); ++i) {
+                const auto& cell = grille[i];
+                if (cell.is_alive) {
+                    int x = i % size_x;
+                    int y = (i / size_x) % size_y;
+                    int z = i / (size_x * size_y);
+                    Vector3 position = {(float)x, (float)y, (float)z};
+                    float radius = 0.1f + (cell.C / max_c) * 0.5f;
+
+                    RayCollision collision = GetRayCollisionSphere(ray, position, radius);
+                    if (collision.hit && collision.distance < closest_collision_dist) {
+                        closest_collision_dist = collision.distance;
+                        selected_cell_coords[0] = x;
+                        selected_cell_coords[1] = y;
+                        selected_cell_coords[2] = z;
+                        hit_found = true;
+                    }
+                }
+            }
+            cell_is_selected = hit_found;
+        }
+
         UpdateCamera(&camera, CAMERA_ORBITAL);
 
         BeginDrawing();
@@ -83,8 +127,13 @@ int main() {
 }
 
 void ResetSimulation() {
+    // Si l'utilisateur a choisi d'utiliser une graine aléatoire, en générer une nouvelle.
+    if (use_random_seed) {
+        sim_seed = time(NULL);
+    }
     monde = std::make_unique<MondeSED>(sim_size[0], sim_size[1], sim_size[2]);
-    monde->InitialiserMonde(sim_density);
+    // Initialise le monde avec la graine et la densité configurées.
+    monde->InitialiserMonde(static_cast<unsigned int>(sim_seed), sim_density);
     simulation_running = false;
     cell_count_history.clear();
 }
@@ -124,6 +173,7 @@ void DrawUI() {
             ImGui::SeparatorText("Statistiques");
              if (monde) {
                 ImGui::Text("Cycle: %d", monde->getCycleActuel());
+                ImGui::Text("Graine (Seed): %u", monde->getSeed());
                 ImGui::Text("Cellules vivantes: %d", monde->getNombreCellulesVivantes());
                 if (!cell_count_history.empty()) {
                     ImGui::Text("Historique du nombre de cellules :");
@@ -142,6 +192,16 @@ void DrawUI() {
             }
             ImGui::SeparatorText("Conditions Initiales");
             ImGui::SliderFloat("Densité Initiale", &sim_density, 0.0f, 1.0f, "%.2f");
+
+            ImGui::SeparatorText("Graine de Génération");
+            ImGui::Checkbox("Graine Aléatoire", &use_random_seed);
+            ImGui::BeginDisabled(use_random_seed);
+            ImGui::InputInt("Graine", &sim_seed);
+            ImGui::EndDisabled();
+            if (ImGui::Button("Nouvelle Graine Aléatoire", ImVec2(-1, 0))) {
+                sim_seed = time(NULL);
+            }
+
 
             ImGui::SeparatorText("Performance");
             ImGui::SliderInt("Cycles par Frame", &sim_cycles_per_frame, 1, 100);
@@ -182,6 +242,39 @@ void DrawUI() {
     ImGui::Text("Couleur = Énergie (Bleu -> Rouge)");
     ImGui::Text("Taille = Charge (Petit -> Grand)");
     ImGui::End();
+
+    // --- Fenêtre de l'Inspecteur de Cellule ---
+    if (cell_is_selected) {
+        ImGui::SetNextWindowSize(ImVec2(280, 250), ImGuiCond_FirstUseEver);
+        ImGui::Begin("Inspecteur de Cellule", &cell_is_selected);
+        if (monde) {
+            int x = selected_cell_coords[0];
+            int y = selected_cell_coords[1];
+            int z = selected_cell_coords[2];
+            // Crée une copie constante pour garantir la sécurité des threads.
+            const Cellule cell = monde->getGrille()[x + y * monde->getTailleX() + z * monde->getTailleX() * monde->getTailleY()];
+
+            ImGui::Text("Position: (%d, %d, %d)", x, y, z);
+            ImGui::Separator();
+            if (cell.is_alive) {
+                ImGui::Text("État: Vivante");
+                ImGui::ProgressBar(cell.E / 2.0f, ImVec2(-1, 0), "Énergie (E)");
+                ImGui::ProgressBar(cell.D, ImVec2(-1, 0), "Dette Besoin (D)");
+                ImGui::ProgressBar(cell.C / cell.Sc, ImVec2(-1, 0), "Charge Émo. (C)");
+                ImGui::ProgressBar(cell.L, ImVec2(-1, 0), "Dette Stimulus (L)");
+                ImGui::Separator();
+                ImGui::Text("Âge (A): %d", cell.A);
+                ImGui::Text("Mémoire (M): %.3f", cell.M);
+                ImGui::Separator();
+                ImGui::Text("Génétique");
+                ImGui::Text("Résistance (R): %.3f", cell.R);
+                ImGui::Text("Seuil Critique (Sc): %.3f", cell.Sc);
+            } else {
+                ImGui::Text("État: Morte");
+            }
+        }
+        ImGui::End();
+    }
 }
 
 #include <algorithm> // Pour std::max
@@ -212,23 +305,20 @@ void Draw3DVisualization(Camera& camera) {
     for (int i = 0; i < grille.size(); ++i) {
         const auto& cellule = grille[i];
         if (cellule.is_alive) {
-            // Recalculer les coordonnées 3D à partir de l'index 1D
             int x = i % size_x;
             int y = (i / size_x) % size_y;
             int z = i / (size_x * size_y);
-
-            // Position de la sphère
             Vector3 position = {(float)x, (float)y, (float)z};
-
-            // La taille est basée sur la Charge (C)
             float radius = 0.1f + (cellule.C / max_c) * 0.5f;
-
-            // La couleur est basée sur l'Énergie (E)
-            // Utilise une transition de couleur HSV (Teinte) de bleu (240) à rouge (0)
             float hue = 240.0f - (cellule.E / max_e) * 240.0f;
             Color color = ColorFromHSV(hue, 0.85f, 0.95f);
 
             DrawSphere(position, radius, color);
+
+            // --- Indicateur de Sélection ---
+            if (cell_is_selected && selected_cell_coords[0] == x && selected_cell_coords[1] == y && selected_cell_coords[2] == z) {
+                DrawSphereWires(position, radius + 0.05f, 8, 8, Color{255, 255, 255, 180});
+            }
         }
     }
 }
