@@ -10,6 +10,7 @@
 #include <map>
 #include <numeric>
 #include <random>
+#include <sstream>
 #include <vector>
 
 // --- Implémentation de la classe MondeSED ---

@@ -101,9 +101,9 @@ int main() {
     rlImGuiSetup(true);
 
     Camera3D camera = { 0 };
-    camera.position = (Vector3){ 30.0f, 30.0f, 30.0f };
-    camera.target = (Vector3){ (float)sim_size[0]/2, (float)sim_size[1]/2, (float)sim_size[2]/2 };
-    camera.up = (Vector3){ 0.0f, 1.0f, 0.0f };
+    camera.position = Vector3{ 30.0f, 30.0f, 30.0f };
+    camera.target = Vector3{ (float)sim_size[0]/2, (float)sim_size[1]/2, (float)sim_size[2]/2 };
+    camera.up = Vector3{ 0.0f, 1.0f, 0.0f };
     camera.fovy = 45.0f;
     camera.projection = CAMERA_PERSPECTIVE;
 
@@ -242,7 +242,7 @@ int main() {
 void ResetSimulation() {
     // Si l'utilisateur a choisi d'utiliser une graine aléatoire, en générer une nouvelle.
     if (use_random_seed) {
-        sim_seed = time(NULL);
+        sim_seed = static_cast<int>(time(NULL));
     }
     monde = std::make_unique<MondeSED>(sim_size[0], sim_size[1], sim_size[2]);
     // Initialise le monde avec la graine et la densité configurées.
@@ -299,7 +299,7 @@ void DrawUI() {
                 ImGui::Text("Cellules vivantes: %d", monde->getNombreCellulesVivantes());
                 if (!cell_count_history.empty()) {
                     ImGui::Text("Historique du nombre de cellules :");
-                    ImGui::PlotLines("##cell_history", cell_count_history.data(), cell_count_history.size(), 0, nullptr, 0.0f, FLT_MAX, ImVec2(0, 80));
+                    ImGui::PlotLines("##cell_history", cell_count_history.data(), static_cast<int>(cell_count_history.size()), 0, nullptr, 0.0f, FLT_MAX, ImVec2(0, 80));
                 }
             }
             ImGui::EndTabItem();
@@ -321,7 +321,7 @@ void DrawUI() {
             ImGui::InputInt("Graine", &sim_seed);
             ImGui::EndDisabled();
             if (ImGui::Button("Nouvelle Graine Aléatoire", ImVec2(-1, 0))) {
-                sim_seed = time(NULL);
+                sim_seed = static_cast<int>(time(NULL));
             }
 
 
