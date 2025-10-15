@@ -43,13 +43,19 @@ target_include_directories(sed_lab PUBLIC
 # This is much more robust. The raylib target will also bring its own dependencies (like GL, X11, etc.)
 target_link_libraries(sed_lab PRIVATE
     raylib
-    glfw3
-    GL
-    m
-    pthread
-    dl
-    X11
 )
+
+# Add platform-specific libraries for Linux to resolve linker issues.
+if(UNIX AND NOT APPLE)
+    target_link_libraries(sed_lab PRIVATE
+        glfw3
+        GL
+        m
+        pthread
+        dl
+        X11
+    )
+endif()
 
 # Add OpenMP flags to our target
 if(OpenMP_FOUND)
