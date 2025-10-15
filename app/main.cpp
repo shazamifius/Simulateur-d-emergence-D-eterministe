@@ -227,7 +227,9 @@ int main() {
 
         rlImGuiBegin();
         DrawUI();
+        BeginBlendMode(BLEND_ALPHA);
         rlImGuiEnd();
+        EndBlendMode();
 
         EndDrawing();
     }
