@@ -335,7 +335,6 @@ void DrawUI() {
         if (monde && ImGui::BeginTabItem("Paramètres")) {
              auto& params = monde->params;
             ImGui::SeparatorText("Loi 1: Mouvement");
-            ImGui::SliderFloat("K_E (Attraction Énergie)", &params.K_E, 0.0f, 5.0f);
             ImGui::SliderFloat("K_D (Motivation Faim)", &params.K_D, 0.0f, 5.0f);
             ImGui::SliderFloat("K_C (Aversion Stress)", &params.K_C, 0.0f, 5.0f);
             ImGui::SliderFloat("K_M (Influence Mémoire)", &params.K_M, 0.0f, 5.0f);

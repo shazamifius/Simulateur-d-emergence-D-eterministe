@@ -11,6 +11,12 @@ find_package(raylib CONFIG REQUIRED)
 
 # The following lines are commented out as they are related to the git submodule approach,
 # which is replaced by the vcpkg dependency management.
+
+# Workaround for Linux linker issues with vcpkg
+if(UNIX AND NOT APPLE)
+    link_directories($ENV{HOME}/vcpkg/installed/x64-linux/lib)
+endif()
+
 # set(BUILD_EXAMPLES OFF CACHE BOOL "Build raylib examples" FORCE)
 # set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build raylib as a shared library" FORCE)
 # add_subdirectory(libs/raylib)

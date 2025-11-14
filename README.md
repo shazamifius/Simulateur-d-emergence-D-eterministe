@@ -39,21 +39,22 @@ Le projet est une **application C++ unifiée** qui intègre un moteur de simulat
 *   **Structure du Monde :** **Voxel Grid 3D.** L'univers est un espace discret où chaque position est une case unique.
 *   **Performance :** L'algorithme de transition est conçu pour le **parallélisme** (multi-threading avec OpenMP) afin d'utiliser la puissance maximale du processeur.
 
-### B. Définition de la `Cellule`
+### B. Cycle de Vie de la Simulation (Ordre des Opérations)
 
-L'état de chaque Cellule est défini par un ensemble de variables. Ces paramètres sont le cœur des lois de transition et sont directement représentés dans le code pour une lisibilité maximale.
+Le déterminisme du simulateur repose sur un ordre d'exécution strict des lois à chaque cycle (`AvancerTemps`). Ce cycle se déroule en trois phases principales pour éviter les conflits d'accès et garantir que toutes les décisions sont basées sur l'état du monde au même instant `t`.
 
-| Variable | Symbole | Type | Rôle Fondamental dans le Système | Catégorie |
-| :--- | :--- | :--- | :--- | :--- |
-| **Énergie** | `E` | `float` | La ressource vitale. L'absence d'Énergie mène à la Mort. | **Dynamique** |
-| **Dette Besoin** | `D` | `float` | Pression des besoins (Faim, Repos). Pilote le déplacement. | **Dynamique** |
-| **Charge Émotionnelle** | `C` | `float` | Niveau de stress. Si trop haut, mène à la mort psychique. | **Dynamique** |
-| **Dette Stimulus** | `L` | `float` | Niveau d'ennui. Force la cellule à chercher l'interaction. | **Dynamique** |
-| **Âge** | `A` | `int` | Compteur de cycles. Affecte d'autres paramètres (ex: mémoire). | **Dynamique** |
-| **Mémoire Énergie**| `M` | `float` | Mémorise la plus haute énergie vue dans le voisinage. | **Dynamique** |
-| **Résistance Innée** | `R` | `float` | **Constante de Naissance.** Facteur "Rebelle", influence les interactions. | **Constante** |
-| **Seuil Critique** | `Sc` | `float` | **Constante de Naissance.** Tolérance maximale au stress. | **Constante** |
+1.  **Phase 1 : Décision (Parallèle)**
+    *   Une copie en lecture seule de la grille est créée.
+    *   Toutes les cellules évaluent leur environnement et prennent leurs décisions **en même temps** sur la base de cette copie.
+    *   Les actions souhaitées (mouvement, division, échanges) sont enregistrées dans des listes temporaires.
 
+2.  **Phase 2 : Action (Séquentielle)**
+    *   Les conflits (ex: deux cellules visant la même case) sont résolus de manière déterministe.
+    *   Les actions validées sont appliquées à la grille principale.
+
+3.  **Phase 3 : Mise à Jour de l'État (Parallèle)**
+    *   Les lois passives comme le vieillissement, la consommation d'énergie et la mémorisation sont appliquées à toutes les cellules.
+    *   Les conditions de mort sont vérifiées.
 
 ---
 
@@ -128,11 +129,24 @@ La méthode recommandée utilise le gestionnaire de paquets `vcpkg` pour une ges
     ./sed_lab
     ```
 
-2.  **Utilisation de l'Interface :**
-    - **Configurer :** Utilisez le panneau de contrôle ImGui pour ajuster les paramètres de la simulation en temps réel.
-    - **Initialiser/Démarrer :**
-        - Cliquez sur **"Initialiser/Réinitialiser"** pour créer un nouveau monde avec les paramètres actuels.
-        - Cliquez sur **"Démarrer"** pour lancer la simulation. Vous pouvez la mettre en pause à tout moment.
-    - **Observer :** La visualisation 3D montre l'état du monde en temps réel.
-        - La **couleur** des cellules représente leur énergie.
-        - La **taille** des cellules représente leur charge émotionnelle.
+2.  **Interface et Fonctionnalités Principales**
+    Le SED-Lab est conçu pour l'expérimentation interactive.
+
+    *   **Contrôles de la Simulation :**
+        *   **Initialiser/Réinitialiser :** Crée un nouveau monde en utilisant les paramètres de taille, densité et graine définis dans l'onglet "Configuration".
+        *   **Démarrer/Pause :** Lance ou arrête l'écoulement du temps.
+        *   **Step :** Fait avancer la simulation d'un seul cycle, pour une analyse pas à pas.
+        *   **Gestion de la Graine :** Dans l'onglet "Configuration", vous pouvez fixer une graine pour la reproductibilité ou en utiliser une aléatoire.
+
+    *   **Visualisation et Analyse :**
+        *   **Inspecteur de Cellule :** **Cliquez sur n'importe quelle cellule** dans la vue 3D pour ouvrir une fenêtre affichant toutes ses statistiques en temps réel. C'est l'outil principal pour comprendre les comportements locaux.
+        *   **Graphique d'Historique :** Le panneau de contrôle principal affiche un graphique de l'évolution du nombre de cellules vivantes, permettant de visualiser la dynamique globale de la simulation.
+        *   **Légende Visuelle :** La **couleur** des cellules représente leur Énergie (`E`), tandis que leur **taille** représente leur Charge Émotionnelle (`C`).
+
+    *   **Sauvegarde et Chargement :**
+        *   Les boutons **"Sauvegarder"** et **"Charger"** permettent de sauvegarder l'état complet de la simulation dans un fichier `simulation_state.sed` et de le recharger plus tard pour reprendre une expérience.
+
+    *   **Navigation 3D :**
+        *   **Orbite :** Maintenez le **clic molette** et déplacez la souris.
+        *   **Panoramique :** Maintenez `Shift` + **clic molette** et déplacez la souris.
+        *   **Zoom :** Utilisez la **molette** de la souris.

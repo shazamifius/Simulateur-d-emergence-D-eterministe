@@ -14,7 +14,6 @@
  */
 struct ParametresGlobaux {
     // Loi 1: Mouvement
-    float K_E = 2.0f;    // Poids de l'attraction vers l'énergie.
     float K_D = 1.0f;    // Poids de la motivation due à la faim (D).
     float K_C = 0.5f;    // Poids de l'aversion au stress (C).
     float K_M = 0.5f;    // Poids de l'influence de la mémoire (M).
