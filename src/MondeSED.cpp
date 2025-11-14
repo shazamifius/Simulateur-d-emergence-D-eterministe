@@ -178,7 +178,7 @@ void MondeSED::AppliquerLoiMouvement(int x, int y, int z, const std::vector<Cell
     bool cible_trouvee = false;
 
     // Calcule le bonus de mémoire, qui diminue avec l'âge.
-    float bonus_memoire = (source_cell.A > 0) ? (params.K_M * (source_cell.M / source_cell.A)) : 0.0f;
+    float bonus_memoire = params.K_M * (source_cell.M / (source_cell.A + 1));
 
     // Alloue un tableau sur la pile pour les voisins afin d'éviter l'allocation dynamique.
     std::tuple<int, int, int> voisins[26];
@@ -190,8 +190,7 @@ void MondeSED::AppliquerLoiMouvement(int x, int y, int z, const std::vector<Cell
         const auto& coords_voisin = voisins[i];
         const Cellule& voisin_cell = getCellule(std::get<0>(coords_voisin), std::get<1>(coords_voisin), std::get<2>(coords_voisin), read_grid);
         if (!voisin_cell.is_alive) { // Cible une case vide
-            float score = (params.K_E * voisin_cell.E) // L'énergie d'une case vide est 0
-                        + (params.K_D * source_cell.D)
+            float score = (params.K_D * source_cell.D)
                         - (params.K_C * source_cell.C)
                         + bonus_memoire;
             if (score > max_score) {
@@ -528,8 +527,7 @@ bool MondeSED::ChargerParametresDepuisFichier(const std::string& nom_fichier) {
             try {
                 // Associe la clé lue à la variable de paramètre correspondante.
                 float valeur = std::stof(valeur_str);
-                if (cle == "K_E") params.K_E = valeur;
-                else if (cle == "K_D") params.K_D = valeur;
+                if (cle == "K_D") params.K_D = valeur;
                 else if (cle == "K_C") params.K_C = valeur;
                 else if (cle == "SEUIL_ENERGIE_DIVISION") params.SEUIL_ENERGIE_DIVISION = valeur;
                 else if (cle == "FACTEUR_ECHANGE_ENERGIE") params.FACTEUR_ECHANGE_ENERGIE = valeur;
