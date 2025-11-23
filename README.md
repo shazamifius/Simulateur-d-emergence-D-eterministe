@@ -150,3 +150,15 @@ La méthode recommandée utilise le gestionnaire de paquets `vcpkg` pour une ges
         *   **Orbite :** Maintenez le **clic molette** et déplacez la souris.
         *   **Panoramique :** Maintenez `Shift` + **clic molette** et déplacez la souris.
         *   **Zoom :** Utilisez la **molette** de la souris.
+
+---
+
+## 5. Structure du Code
+
+Pour les développeurs souhaitant comprendre ou contribuer au projet, voici une vue d'ensemble des fichiers clés :
+
+*   `app/main.cpp`: C'est le **point d'entrée de l'application**. Il gère la création de la fenêtre, l'initialisation de `raylib` et `ImGui`, la boucle principale de rendu, et les interactions de l'utilisateur (clavier, souris). Il contient également le code de l'interface graphique (UI).
+
+*   `include/MondeSED.h`: Le **fichier d'en-tête principal de la simulation**. Il définit la structure des `Cellule`, les `ParametresGlobaux`, et l'interface publique de la classe `MondeSED`. C'est le meilleur endroit pour comprendre quelles données sont stockées et quelles actions peuvent être effectuées sur le monde de la simulation.
+
+*   `src/MondeSED.cpp`: L'**implémentation de la logique de simulation**. Ce fichier contient le "cœur" du projet, y compris l'implémentation détaillée de toutes les lois mathématiques qui régissent le comportement des cellules (mouvement, division, interaction, etc.).

@@ -15,7 +15,10 @@
 
 // --- Implémentation de la classe MondeSED ---
 
-// Calcule et retourne le nombre total de cellules vivantes dans la grille.
+/**
+ * @brief Calcule et retourne le nombre total de cellules vivantes dans la grille.
+ * @return Le nombre de cellules actuellement vivantes.
+ */
 int MondeSED::getNombreCellulesVivantes() const {
     // Utilise std::accumulate pour sommer les cellules vivantes de manière efficace.
     return std::accumulate(grille.begin(), grille.end(), 0, [](int count, const Cellule& cell) {
@@ -23,15 +26,20 @@ int MondeSED::getNombreCellulesVivantes() const {
     });
 }
 
-// --- Constructeur ---
-// Initialise le monde avec les dimensions données et pré-alloue la grille.
+/**
+ * @brief Constructeur de la classe MondeSED.
+ * @details Initialise le monde avec les dimensions données et pré-alloue la mémoire pour la grille.
+ */
 MondeSED::MondeSED(int sx, int sy, int sz) : size_x(sx), size_y(sy), size_z(sz), cycle_actuel(0) {
     grille.resize(size_x * size_y * size_z);
     params = ParametresGlobaux(); // Initialise les paramètres avec les valeurs par défaut.
 }
 
-// Convertit les coordonnées 3D en un index 1D pour l'accès au vecteur `grille`.
-// Retourne -1 si les coordonnées sont hors limites.
+/**
+ * @brief Convertit les coordonnées 3D en un index 1D pour l'accès au vecteur `grille`.
+ * @details Cette fonction est privée et utilisée en interne pour l'accès aux données.
+ * @return L'index 1D correspondant, ou -1 si les coordonnées sont hors limites.
+ */
 int MondeSED::getIndex(int x, int y, int z) const {
     if (x < 0 || x >= size_x || y < 0 || y >= size_y || z < 0 || z >= size_z) {
         return -1; // Coordonnées hors limites
@@ -40,19 +48,29 @@ int MondeSED::getIndex(int x, int y, int z) const {
     return x + y * size_x + z * size_x * size_y;
 }
 
-// Retourne une référence modifiable à une cellule à partir de ses coordonnées 3D.
+/**
+ * @brief Retourne une référence modifiable à une cellule à partir de ses coordonnées 3D.
+ * @details Cette fonction est privée et utilisée en interne.
+ */
 Cellule& MondeSED::getCellule(int x, int y, int z) {
     return grille[getIndex(x, y, z)];
 }
 
-// Retourne une référence constante à une cellule d'une grille donnée (lecture seule).
+/**
+ * @brief Retourne une référence constante à une cellule d'une grille donnée (lecture seule).
+ * @details Cette fonction est privée et utilisée en interne.
+ */
 const Cellule& MondeSED::getCellule(int x, int y, int z, const std::vector<Cellule>& grid) const {
     return grid[getIndex(x, y, z)];
 }
 
 // --- Initialisation et Exportation ---
 
-// Remplit la grille avec une "soupe primordiale" de cellules de manière déterministe.
+/**
+ * @brief Remplit la grille avec une "soupe primordiale" de cellules de manière déterministe.
+ * @details Chaque cellule est initialisée avec des propriétés aléatoires basées sur la graine fournie,
+ * assurant que des simulations avec la même graine sont identiques.
+ */
 void MondeSED::InitialiserMonde(unsigned int seed, float initial_density) {
     current_seed = seed; // Sauvegarde la graine utilisée.
     // Le générateur est maintenant initialisé avec la graine fournie, garantissant la reproductibilité.
@@ -77,7 +95,11 @@ void MondeSED::InitialiserMonde(unsigned int seed, float initial_density) {
     }
 }
 
-// Exporte l'état actuel des cellules vivantes dans un fichier CSV.
+/**
+ * @brief Exporte l'état actuel des cellules vivantes dans un fichier CSV.
+ * @details Utile pour l'analyse de données post-simulation. Le fichier contient les
+ * coordonnées et les principales propriétés de chaque cellule vivante.
+ */
 void MondeSED::ExporterEtatMonde(const std::string& nom_de_base) const {
     // Construit un nom de fichier unique basé sur le numéro de cycle.
     std::string nom_fichier = nom_de_base + "_cycle_" + std::to_string(cycle_actuel) + ".csv";
@@ -109,8 +131,12 @@ void MondeSED::ExporterEtatMonde(const std::string& nom_de_base) const {
 
 // --- Lois de Simulation (Phase de Mise à Jour d'État) ---
 
-// Applique la Loi 0 (Survie, Vieillissement) et la Loi 6 (Mémorisation).
-// Cette fonction est appliquée à la fin du cycle, après les décisions et actions.
+/**
+ * @brief Applique la Loi 0 (Survie, Vieillissement) et la Loi 6 (Mémorisation).
+ * @details Cette fonction est appliquée à la fin du cycle. Elle gère la consommation passive
+ * d'énergie, le vieillissement, et met à jour la mémoire de la cellule. Elle vérifie également
+ * les conditions de mort.
+ */
 void MondeSED::AppliquerLoiZero(int x, int y, int z) {
     Cellule& cell = getCellule(x, y, z);
     if (!cell.is_alive) return;
@@ -147,7 +173,11 @@ void MondeSED::AppliquerLoiZero(int x, int y, int z) {
 
 // --- Fonctions Utilitaires ---
 
-// Version optimisée de GetCoordsVoisins qui évite les allocations de vecteur.
+/**
+ * @brief Version optimisée de GetCoordsVoisins qui évite les allocations de vecteur.
+ * @details Remplit un tableau pré-alloué avec les coordonnées des voisins valides.
+ * C'est une micro-optimisation pour éviter des allocations répétées dans la boucle principale.
+ */
 void MondeSED::GetCoordsVoisins_Optimized(int x, int y, int z, std::tuple<int, int, int>* voisins_array, int& count) const {
     count = 0;
     for (int dz = -1; dz <= 1; ++dz) {
@@ -168,7 +198,11 @@ void MondeSED::GetCoordsVoisins_Optimized(int x, int y, int z, std::tuple<int, i
 
 // --- Lois de Simulation (Phase de Décision) ---
 
-// Applique la Loi 1 (Mouvement) : Calcule la meilleure destination pour une cellule.
+/**
+ * @brief Applique la Loi 1 (Mouvement) : Calcule la meilleure destination pour une cellule.
+ * @details La décision est basée sur un score qui prend en compte la faim (D), le stress (C)
+ * et la mémoire (M) de la cellule. L'action est enregistrée pour être appliquée plus tard.
+ */
 void MondeSED::AppliquerLoiMouvement(int x, int y, int z, const std::vector<Cellule>& read_grid) {
     const Cellule& source_cell = getCellule(x, y, z, read_grid);
     if (!source_cell.is_alive) return;
@@ -211,7 +245,11 @@ void MondeSED::AppliquerLoiMouvement(int x, int y, int z, const std::vector<Cell
 
 // --- Fonctions d'Application des Actions (Phase d'Action) ---
 
-// Résout les conflits de mouvement et applique les mouvements validés.
+/**
+ * @brief Résout les conflits de mouvement et applique les mouvements validés.
+ * @details Si plusieurs cellules visent la même destination, seule celle avec la
+ * "Dette de Besoin" (D) la plus élevée l'emporte. Cette approche garantit le déterminisme.
+ */
 void MondeSED::AppliquerMouvements() {
     // Gère les conflits : si plusieurs cellules visent la même destination,
     // seule celle avec la "Dette de Besoin" (D) la plus élevée l'emporte.
@@ -236,10 +274,13 @@ void MondeSED::AppliquerMouvements() {
     mouvements_souhaites.clear();
 }
 
-// Génère une mutation déterministe pour R et Sc lors de la division.
-// La mutation dépend des coordonnées de la case cible et de l'âge de la nouvelle cellule,
-// garantissant que le résultat est toujours le même pour une situation donnée.
-// Ceci est crucial pour la reproductibilité de la simulation.
+/**
+ * @brief Génère une mutation déterministe pour R et Sc lors de la division.
+ * @details La mutation dépend des coordonnées de la case cible et de l'âge de la nouvelle cellule,
+ * garantissant que le résultat est toujours le même pour une situation donnée.
+ * Ceci est crucial pour la reproductibilité de la simulation.
+ * @return Une petite valeur de mutation (+0.01, -0.01, ou 0).
+ */
 float deterministic_mutation(int x, int y, int z, int age) {
     // Utilise des nombres premiers pour améliorer la distribution du hash.
     unsigned int hash = (x * 18397) + (y * 20441) + (z * 22543) + (age * 24671);
@@ -249,7 +290,11 @@ float deterministic_mutation(int x, int y, int z, int age) {
     return 0.0f;
 }
 
-// Applique la Loi 2 (Division) : Détermine si une cellule doit se diviser et où.
+/**
+ * @brief Applique la Loi 2 (Division) : Détermine si une cellule doit se diviser et où.
+ * @details Une cellule se divise si elle a assez d'énergie. La cible est la case voisine
+ * vide avec la plus haute "Résistance Innée" (R), favorisant la cohésion génétique.
+ */
 void MondeSED::AppliquerLoiDivision(int x, int y, int z, const std::vector<Cellule>& read_grid) {
     const Cellule& mere = getCellule(x, y, z, read_grid);
     if (!mere.is_alive || mere.E <= params.SEUIL_ENERGIE_DIVISION) return;
@@ -282,7 +327,11 @@ void MondeSED::AppliquerLoiDivision(int x, int y, int z, const std::vector<Cellu
     }
 }
 
-// Résout les conflits de division et applique les divisions validées.
+/**
+ * @brief Résout les conflits de division et applique les divisions validées.
+ * @details Si plusieurs cellules visent la même case pour la division, seule
+ * celle avec l'Énergie (E) la plus élevée l'emporte.
+ */
 void MondeSED::AppliquerDivisions() {
     // Gère les conflits : si plusieurs cellules visent la même case,
     // seule celle avec l'Énergie (E) la plus élevée l'emporte.
@@ -319,7 +368,11 @@ void MondeSED::AppliquerDivisions() {
     divisions_souhaitees.clear();
 }
 
-// Applique la Loi 4 (Échange Énergétique) : Partage d'énergie entre cellules similaires.
+/**
+ * @brief Applique la Loi 4 (Échange Énergétique) : Partage d'énergie entre cellules similaires.
+ * @details Une cellule partage une petite quantité d'énergie avec des voisins génétiquement
+ * similaires (R proche) qui ont significativement moins d'énergie.
+ */
 void MondeSED::AppliquerLoiEchange(int x, int y, int z, const std::vector<Cellule>& read_grid) {
     const Cellule& source = getCellule(x, y, z, read_grid);
     if (!source.is_alive) return;
@@ -343,7 +396,11 @@ void MondeSED::AppliquerLoiEchange(int x, int y, int z, const std::vector<Cellul
     }
 }
 
-// Applique la Loi 5 (Interaction Psychique) : Gestion de l'ennui et du stress.
+/**
+ * @brief Applique la Loi 5 (Interaction Psychique) : Gestion de l'ennui et du stress.
+ * @details Une cellule "ennuyée" (L élevé) interagit avec le voisin le moins ennuyé.
+ * L'interaction réduit l'ennui des deux mais augmente leur stress (C).
+ */
 void MondeSED::AppliquerLoiPsychisme(int x, int y, int z, const std::vector<Cellule>& read_grid) {
     const Cellule& source = getCellule(x, y, z, read_grid);
     if (!source.is_alive) return;
@@ -376,7 +433,9 @@ void MondeSED::AppliquerLoiPsychisme(int x, int y, int z, const std::vector<Cell
     }
 }
 
-// Applique les échanges d'énergie planifiés.
+/**
+ * @brief Applique les échanges d'énergie planifiés.
+ */
 void MondeSED::AppliquerEchangesEnergie() {
     for (const auto& echange : echanges_energie_souhaites) {
         // La cellule source donne de l'énergie, la destination en reçoit.
@@ -386,7 +445,9 @@ void MondeSED::AppliquerEchangesEnergie() {
     echanges_energie_souhaites.clear();
 }
 
-// Applique les échanges psychiques planifiés.
+/**
+ * @brief Applique les échanges psychiques planifiés.
+ */
 void MondeSED::AppliquerEchangesPsychiques() {
     for (const auto& echange : echanges_psychiques_souhaites) {
         Cellule& source = getCellule(std::get<0>(echange.source), std::get<1>(echange.source), std::get<2>(echange.source));
@@ -402,8 +463,12 @@ void MondeSED::AppliquerEchangesPsychiques() {
 
 // --- Boucle de Simulation Principale ---
 
-// Fait avancer la simulation d'un cycle.
-// L'ordre des opérations est crucial pour le déterminisme.
+/**
+ * @brief Fait avancer la simulation d'un cycle.
+ * @details L'ordre des opérations est crucial pour le déterminisme. Le cycle se déroule
+ * en trois phases : Décision (lecture seule, parallèle), Action (écriture, séquentielle),
+ * et Mise à Jour de l'État (écriture, parallèle).
+ */
 void MondeSED::AvancerTemps() {
     cycle_actuel++;
 
@@ -452,13 +517,18 @@ void MondeSED::AvancerTemps() {
 
 // --- Accesseurs ---
 
+/**
+ * @brief Retourne une référence constante à la grille de cellules.
+ */
 const std::vector<Cellule>& MondeSED::getGrille() const {
     return grille;
 }
 
 // --- Sauvegarde et Chargement ---
 
-// Sauvegarde l'état complet de la simulation dans un fichier binaire.
+/**
+ * @brief Sauvegarde l'état complet de la simulation dans un fichier binaire.
+ */
 bool MondeSED::SauvegarderEtat(const std::string& nom_fichier) const {
     std::ofstream fichier_sortie(nom_fichier, std::ios::binary);
     if (!fichier_sortie) {
@@ -481,7 +551,9 @@ bool MondeSED::SauvegarderEtat(const std::string& nom_fichier) const {
     return true;
 }
 
-// Charge un état de simulation depuis un fichier binaire.
+/**
+ * @brief Charge un état de simulation depuis un fichier binaire.
+ */
 bool MondeSED::ChargerEtat(const std::string& nom_fichier) {
     std::ifstream fichier_entree(nom_fichier, std::ios::binary);
     if (!fichier_entree) {
@@ -505,7 +577,9 @@ bool MondeSED::ChargerEtat(const std::string& nom_fichier) {
     return true;
 }
 
-// Charge les paramètres de simulation depuis un fichier texte de type clé=valeur.
+/**
+ * @brief Charge les paramètres de simulation depuis un fichier texte de type clé=valeur.
+ */
 bool MondeSED::ChargerParametresDepuisFichier(const std::string& nom_fichier) {
     std::ifstream fichier_params(nom_fichier);
     if (!fichier_params.is_open()) {

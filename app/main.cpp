@@ -12,24 +12,30 @@
 #include <vector>
 
 // --- Variables globales ---
-std::unique_ptr<MondeSED> monde;
-bool simulation_running = false;
-std::vector<float> cell_count_history; // Pour le graphique de l'historique
+std::unique_ptr<MondeSED> monde; /**< @brief Pointeur intelligent vers l'instance unique du monde de la simulation. */
+bool simulation_running = false; /**< @brief Booléen contrôlant l'état de lecture/pause de la simulation. */
+std::vector<float> cell_count_history; /**< @brief Stocke l'historique du nombre de cellules pour l'affichage du graphique. */
 
 // --- Paramètres de simulation configurables via l'UI ---
-static int sim_size[3] = {16, 16, 16};
-static float sim_density = 0.1f;
-static int sim_cycles_per_frame = 1;
-static int sim_seed = 12345; // Graine de simulation
-static bool use_random_seed = true;
-static int selected_cell_coords[3] = {-1, -1, -1}; // Coordonnées de la cellule sélectionnée
-static bool cell_is_selected = false;
+static int sim_size[3] = {16, 16, 16}; /**< @brief Taille de la grille de simulation (X, Y, Z). */
+static float sim_density = 0.1f; /**< @brief Densité initiale de cellules vivantes lors de la création du monde. */
+static int sim_cycles_per_frame = 1; /**< @brief Nombre de cycles de simulation à exécuter par frame de rendu. */
+static int sim_seed = 12345; /**< @brief Graine pour le générateur de nombres aléatoires. */
+static bool use_random_seed = true; /**< @brief Si vrai, une nouvelle graine est générée à chaque réinitialisation. */
+static int selected_cell_coords[3] = {-1, -1, -1}; /**< @brief Coordonnées (X, Y, Z) de la cellule actuellement sélectionnée par l'utilisateur. */
+static bool cell_is_selected = false; /**< @brief État de la sélection d'une cellule. */
 
-// --- Fonctions ---
+// --- Prototypes de Fonctions ---
 void ResetSimulation();
 void DrawUI();
 void Draw3DVisualization(Camera& camera);
 
+/**
+ * @brief Point d'entrée principal de l'application SED-Lab.
+ * @details Initialise la fenêtre, le contexte ImGui, la caméra 3D, et contient la boucle
+ * principale de l'application qui gère la simulation, le rendu et les interactions utilisateur.
+ * @return 0 si l'application se termine normalement.
+ */
 int main() {
     int screenWidth = 1280;
     int screenHeight = 800;
@@ -241,6 +247,11 @@ int main() {
     return 0;
 }
 
+/**
+ * @brief Réinitialise la simulation en créant une nouvelle instance de MondeSED.
+ * @details Utilise les paramètres globaux (taille, densité, graine) configurés via l'UI
+ * pour initialiser un nouvel état de simulation.
+ */
 void ResetSimulation() {
     // Si l'utilisateur a choisi d'utiliser une graine aléatoire, en générer une nouvelle.
     if (use_random_seed) {
@@ -253,6 +264,12 @@ void ResetSimulation() {
     cell_count_history.clear();
 }
 
+/**
+ * @brief Dessine l'ensemble de l'interface utilisateur (UI) avec ImGui.
+ * @details Cette fonction est responsable de la création de toutes les fenêtres ImGui :
+ * le panneau de contrôle, la légende, et la fenêtre d'inspection de cellule.
+ * Elle permet à l'utilisateur d'interagir avec la simulation.
+ */
 void DrawUI() {
     ImGui::Begin("Panneau de Contrôle", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
 
@@ -403,6 +420,13 @@ void DrawUI() {
 #include <algorithm> // Pour std::max
 #include <cmath>     // Pour fmod
 
+/**
+ * @brief Dessine la visualisation 3D de la simulation dans le monde raylib.
+ * @details Parcourt la grille de simulation et dessine une sphère pour chaque cellule vivante.
+ * La couleur de la sphère représente l'Énergie (E) de la cellule, et sa taille représente
+ * la Charge Émotionnelle (C).
+ * @param camera La caméra 3D raylib utilisée pour la scène.
+ */
 void Draw3DVisualization(Camera& camera) {
     // --- Pre-calcul pour la normalisation ---
     float max_e = 0.0f;
