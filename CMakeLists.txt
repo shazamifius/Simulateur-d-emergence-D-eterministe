@@ -29,20 +29,20 @@ endif()
 
 # Define the executable and its source files
 add_executable(sed_lab
-    app/main.cpp
+    src/main.cpp
     src/MondeSED.cpp
-    imgui/imgui.cpp
-    imgui/imgui_draw.cpp
-    imgui/imgui_widgets.cpp
-    imgui/imgui_tables.cpp
-    imgui/imgui_demo.cpp
-    imgui/rlImGui.cpp
+    libs/imgui/imgui.cpp
+    libs/imgui/imgui_draw.cpp
+    libs/imgui/imgui_widgets.cpp
+    libs/imgui/imgui_tables.cpp
+    libs/imgui/imgui_demo.cpp
+    libs/imgui/rlImGui.cpp
 )
 
 # Include directories for our project's headers
 target_include_directories(sed_lab PUBLIC
     include
-    imgui
+    libs/imgui
 )
 
 # Link against the 'raylib' target built from the submodule.
@@ -67,3 +67,7 @@ endif()
 if(OpenMP_FOUND)
     target_link_libraries(sed_lab PRIVATE OpenMP::OpenMP_CXX)
 endif()
+
+# --- Verification Test ---
+
+

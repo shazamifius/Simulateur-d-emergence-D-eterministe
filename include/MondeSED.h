@@ -13,25 +13,39 @@
  * Ces "leviers" permettent de modifier le comportement des lois sans recompiler.
  */
 struct ParametresGlobaux {
-    // Loi 1: Mouvement
-    float K_D = 1.0f;    // Poids de la motivation due à la faim (D).
-    float K_C = 0.5f;    // Poids de l'aversion au stress (C).
-    float K_M = 0.5f;    // Poids de l'influence de la mémoire (M).
+// Loi 0: Thermodynamique & Survie
+    float K_THERMO = 0.001f;      // Coût énergétique par cycle (Métabolisme).
+    float D_PER_TICK = 0.002f;    // Augmentation de la dette (faim) par cycle.
+    float L_PER_TICK = 0.001f;    // Augmentation de l'ennui par cycle.
 
-    // Loi 2: Division
-    float SEUIL_ENERGIE_DIVISION = 1.8f; // Seuil d'énergie requis pour la division.
+    // Loi 1: Dynamique (Mouvement)
+    float K_D = 1.0f;             // Poids gravitaire (Dette).
+    float K_C = 0.5f;             // Poids répulsif (Stress).
+    float K_M = 0.5f;             // Poids inertiel (Mémoire).
+    float COUT_MOUVEMENT = 0.001f;// Coût énergétique d'un déplacement.
 
-    // Loi 4: Échange Énergétique
-    float FACTEUR_ECHANGE_ENERGIE = 0.05f;   // Pourcentage de la différence d'énergie à transférer.
-    float SEUIL_DIFFERENCE_ENERGIE = 0.2f; // Seuil à partir duquel l'échange est déclenché.
-    float SEUIL_SIMILARITE_R = 0.1f;       // Seuil de "parenté" génétique (R) requis.
+    // Loi 2: Reproduction (Mitose)
+    float SEUIL_ENERGIE_DIVISION = 1.8f;
+    float COUT_DIVISION = 0.0f;   // Coût extra (optionnel), sinon conservation stricte.
 
-    // Loi 5: Interaction Psychique
-    float TAUX_AUGMENTATION_ENNUI = 0.001f;   // Vitesse à laquelle l'ennui (L) augmente.
-    float FACTEUR_ECHANGE_PSYCHIQUE = 0.1f; // Intensité du stress et du soulagement générés.
+    // Loi 3: Champs (Action à distance)
+    float RAYON_DIFFUSION = 2.0f; // Rayon d'influence des champs.
+    float ALPHA_ATTENUATION = 1.0f; // Coefficient d'atténuation (exp(-alpha * dist)).
+
+    // Loi 4: Osmose (Échange Énergétique)
+    float FACTEUR_ECHANGE_ENERGIE = 0.05f;
+    float SEUIL_DIFFERENCE_ENERGIE = 0.2f;
+    float SEUIL_SIMILARITE_R = 0.1f; // Tolerance génétique.
+    float MAX_FLUX_ENERGIE = 0.05f;  // Limite par échange pour stabilité.
+
+    // Loi 5: Interaction Forte (Psychique)
+    float FACTEUR_ECHANGE_PSYCHIQUE = 0.1f;
+
+    // Mémoire
+    float TAUX_OUBLI = 0.01f;     // Décroissance exponentielle de la mémoire.
 
     // Exportation
-    int intervalle_export = 10; // Fréquence d'exportation des données (en cycles).
+    int intervalle_export = 10;
 };
 
 /**
