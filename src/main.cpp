@@ -376,6 +376,9 @@ void DrawUI() {
       ImGui::SliderFloat("K_D (Gravité)", &params.K_D, 0.0f, 5.0f);
       ImGui::SliderFloat("K_C (Pression)", &params.K_C, 0.0f, 5.0f);
       ImGui::SliderFloat("K_M (Inertie)", &params.K_M, 0.0f, 5.0f);
+      ImGui::SliderFloat("K_ADH (Adhésion)", &params.K_ADH, 0.0f, 5.0f);
+      ImGui::SliderFloat("K_CHAMP_E", &params.K_CHAMP_E, 0.0f, 5.0f);
+      ImGui::SliderFloat("K_CHAMP_C", &params.K_CHAMP_C, 0.0f, 5.0f);
       ImGui::SliderFloat("Coût Mouvement", &params.COUT_MOUVEMENT, 0.0f, 0.01f,
                          "%.4f");
 
@@ -402,6 +405,12 @@ void DrawUI() {
       ImGui::SeparatorText("Loi 5: Psychisme");
       ImGui::SliderFloat("Facteur Échange Psy",
                          &params.FACTEUR_ECHANGE_PSYCHIQUE, 0.0f, 0.5f);
+
+      ImGui::SeparatorText("Neural & Morpho");
+      ImGui::SliderInt("N (Ticks Neuraux)", &params.TICKS_NEURAUX_PAR_PHYSIQUE, 1, 20);
+      ImGui::SliderFloat("Apprentissage (LearnRate)", &params.LEARN_RATE, 0.0f, 1.0f);
+      ImGui::SliderFloat("Seuil Soma", &params.SEUIL_SOMA, 0.0f, 1.0f);
+      ImGui::SliderFloat("Seuil Neuro", &params.SEUIL_NEURO, 0.0f, 1.0f);
 
       ImGui::EndTabItem();
     }
@@ -449,6 +458,11 @@ void DrawUI() {
         ImGui::Text("Génétique");
         ImGui::Text("Résistance (R): %.3f", cell.R);
         ImGui::Text("Seuil Critique (Sc): %.3f", cell.Sc);
+        ImGui::Separator();
+        ImGui::Text("Identité & Neural");
+        ImGui::Text("Type (T): %d", (int)cell.T);
+        ImGui::Text("Potentiel (P): %.3f", cell.P);
+        ImGui::Text("Gradient (G): %.3f", cell.G);
       } else {
         ImGui::Text("État: Morte");
       }
