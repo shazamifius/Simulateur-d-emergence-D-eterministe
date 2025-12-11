@@ -1,6 +1,8 @@
 // --- Fichiers d'en-tête ---
 #include "MondeSED.h"
+#include "rlgl.h" // For Compute Shader & SSBO
 #include <algorithm>
+#include <cstring> // For memcpy
 #include <cmath>
 #include <ctime>
 #include <fstream>
@@ -13,6 +15,23 @@
 #include <sstream>
 #include <vector>
 #include <cstring> // Pour memset si besoin
+
+#ifdef _WIN32
+#define NOMINMAX
+#include <windows.h>
+#endif
+
+// Helper for RAM Detection
+size_t GetAvailableRAMMB() {
+#ifdef _WIN32
+    MEMORYSTATUSEX statex;
+    statex.dwLength = sizeof(statex);
+    GlobalMemoryStatusEx(&statex);
+    return statex.ullAvailPhys / (1024 * 1024);
+#else
+    return 4096; // Default fallback for non-Windows (4GB)
+#endif
+}
 
 // --- Implémentation de la classe MondeSED ---
 
@@ -29,6 +48,33 @@ MondeSED::MondeSED(int sx, int sy, int sz)
     : size_x(sx), size_y(sy), size_z(sz), cycle_actuel(0) {
   grille.resize(size_x * size_y * size_z);
   params = ParametresGlobaux();
+  
+    // Auto-Detect System Limits
+    size_t free_ram = GetAvailableRAMMB();
+    // Safety Margin: Use 70% of Free RAM
+    size_t safe_ram_mb = (size_t)(free_ram * 0.7);
+    params.MAX_RAM_MB = safe_ram_mb;
+    
+    // Calculate Safe Cell Count
+    // Cellule size ~100 bytes (struct check required, let's say 128 for safety)
+    size_t cell_size = sizeof(Cellule); 
+    size_t max_cells = (safe_ram_mb * 1024 * 1024) / cell_size;
+    
+    // Clamp to reasonable upper bound (e.g. 50M) to limit integer overflows
+    if(max_cells > 50000000) max_cells = 50000000;
+    
+    params.MAX_CELLS = max_cells;
+    
+    std::cout << "[SYSTEM] RAM Detected: " << free_ram << " MB" << std::endl;
+    std::cout << "[SYSTEM] Safe Limit Set: " << params.MAX_CELLS << " Cells (" << params.MAX_RAM_MB << " MB Allocated)" << std::endl;
+    
+    if(CheckGPUSupport()) {
+        use_gpu = true; 
+        std::cout << "[SYSTEM] GPU Compute is Available. Enabled by default." << std::endl;
+    } else {
+        use_gpu = false;
+        std::cout << "[SYSTEM] GPU Compute not available or experimental. Defaulting to CPU." << std::endl;
+    }
 }
 
 // Convertit les coordonnées 3D en un index 1D
@@ -67,6 +113,12 @@ void MondeSED::InitialiserMonde(unsigned int seed, float initial_density) {
         for(int i=0; i<27; ++i) cell.W[i] = random_w(rng);
 
         if (random_float(rng) < initial_density) {
+          // Safety Check: Max Cells
+          if (!params.limit_safety_override && getNombreCellulesVivantes() >= params.MAX_CELLS) {
+              std::cerr << "[WARN] Initialisation: Max Cells (" << params.MAX_CELLS << ") reached at z=" << z << "\n";
+              goto init_finished;
+          }
+
           cell.is_alive = true;
           cell.E = 1.0f;
           cell.R = random_r_s(rng);
@@ -76,6 +128,8 @@ void MondeSED::InitialiserMonde(unsigned int seed, float initial_density) {
       }
     }
   }
+
+init_finished:;
 }
 
 void MondeSED::ExporterEtatMonde(const std::string &nom_de_base) const {
@@ -163,6 +217,14 @@ void MondeSED::CalculerBarycentre() {
     }
 }
 
+// Fonction de bruit déterministe pour la Loi 3
+float deterministic_noise(int x, int y, int z, int cycle, int sub_tick) {
+    unsigned int hash = (x * 73856093) ^ (y * 19349663) ^ (z * 83492791) ^ (cycle * 55555) ^ (sub_tick * 1234);
+    // Ramener entre -0.05 et +0.05 par exemple (bruit faible)
+    // Spec doesn't specify magnitude, only "Noise(Seed)". Assuming small perturbation.
+    return ((hash % 100) / 1000.0f) - 0.05f; 
+}
+
 // --- BOUCLE NEURALE (Groupe B) ---
 void MondeSED::ExecuterCycleNeural() {
     // Allocation temporaire pour double-buffering de P
@@ -211,6 +273,28 @@ void MondeSED::ExecuterCycleNeural() {
                     }
 
                     float I = (sum_W > 0) ? (sum_input / std::max(1.0f, sum_W)) : 0.0f;
+                    
+                    // Loi 4: Ignition (Broadcast Local - Radius 2)
+                    // Si un voisin dans rayon 2 a spike (P > Seuil), je reçois +0.1
+                    float ignition_boost = 0.0f;
+                    int r_ign = (int)params.RAYON_IGNITION;
+                    
+                    for(int dz=-r_ign; dz<=r_ign; ++dz) {
+                        for(int dy=-r_ign; dy<=r_ign; ++dy) {
+                            for(int dx=-r_ign; dx<=r_ign; ++dx) {
+                                if(dx==0 && dy==0 && dz==0) continue;
+                                int nx = x+dx, ny = y+dy, nz = z+dz;
+                                int v_idx = getIndex(nx, ny, nz);
+                                if(v_idx != -1) {
+                                     // Check Spike dans P_current (Etat début de tick neural)
+                                     // Note: On suppose que "Spike" veut dire P > SEUIL_FIRE
+                                     if(P_current[v_idx] > params.SEUIL_FIRE) {
+                                         ignition_boost += 0.1f;
+                                     }
+                                }
+                            }
+                        }
+                    }
 
                     // Gestion Réfractaire
                     if(cell.Ref > 0) {
@@ -218,9 +302,9 @@ void MondeSED::ExecuterCycleNeural() {
                         P_next[idx] = 0.0f; // Inhibé
                     } else {
                         // Mise à jour Potentiel
-                        // P_new = (P_old * 0.9) + I
-                        // Note: Doc mentionne Noise(Seed), on omet pour perf/determinisme simple pour l'instant
-                        float p_new = (P_current[idx] * 0.9f) + I;
+                        // P_new = (P_old * 0.9) + I + Noise
+                        float noise = deterministic_noise(x, y, z, cycle_actuel, iter);
+                        float p_new = (P_current[idx] * 0.9f) + I + noise + ignition_boost;
 
                         // Spike ?
                         if(p_new > params.SEUIL_FIRE) {
@@ -230,16 +314,6 @@ void MondeSED::ExecuterCycleNeural() {
 
                             // Mise à jour Historique (Bitfield)
                             cell.H = (cell.H << 1) | 1;
-
-                            // Loi 4: Ignition (Broadcast local immédiat pour le prochain tick ?)
-                            // La doc dit "Si P est Spike ... P_voisins += 0.1".
-                            // Dans un automate, cela influence le voisin au prochain tick.
-                            // Ici, notre modèle "Somme pondérée" couvre déjà la transmission.
-                            // La Loi 4 semble être une règle supplémentaire de "Boost" non synaptique.
-                            // On l'ajoute directement ici ? Non, P_next est écrasé.
-                            // On va supposer que l'Intégration synaptique couvre la transmission principale.
-                            // Si Ignition est un boost EXTRA, il faudrait le faire en 2 passes.
-                            // Simplification: On s'en tient à l'intégration synaptique qui est plus standard.
                         } else {
                             P_next[idx] = p_new;
                             cell.H = (cell.H << 1); // Pas de spike
@@ -377,26 +451,47 @@ void MondeSED::AppliquerLoiMouvement(int x, int y, int z, const std::vector<Cell
         const Cellule& target = getCellule(std::get<0>(coords), std::get<1>(coords), std::get<2>(coords), read_grid);
 
         if(!target.is_alive) {
-            // Case vide: Calcul du champ local (simulé)
-            float champ_E = 0.0f;
-            float champ_C = 0.0f;
-            int count_adh = 0;
+            // Case vide: Calcul du champ local (Loi 8: Rayon > 1)
+            float bonus_champ_E = 0.0f;
+            float bonus_champ_C = 0.0f;
+            int count_adh = 0; // Adhésion reste contact direct (Rayon 1)
 
-            // On regarde les voisins de la CIBLE pour estimer le champ et l'adhésion
+            // 1. Adhésion (Direct neighbors of Target)
             std::tuple<int, int, int> v_cible[26];
             int nb_v_cible;
             GetCoordsVoisins_Optimized(std::get<0>(coords), std::get<1>(coords), std::get<2>(coords), v_cible, nullptr, nb_v_cible);
 
             for(int j=0; j<nb_v_cible; ++j) {
                 const Cellule& n = getCellule(std::get<0>(v_cible[j]), std::get<1>(v_cible[j]), std::get<2>(v_cible[j]), read_grid);
-                if(n.is_alive) {
-                    champ_E += n.E; // Simplification champ local immédiat (rayon 1)
-                    champ_C += n.C;
-                    if(n.T == source.T) count_adh++;
+                if(n.is_alive && n.T == source.T) count_adh++;
+            }
+
+            // 2. Champs (Rayon étendu)
+            int r_field = (int)params.RAYON_DIFFUSION;
+            int tx = std::get<0>(coords);
+            int ty = std::get<1>(coords);
+            int tz = std::get<2>(coords);
+
+            for(int dz=-r_field; dz<=r_field; ++dz) {
+                for(int dy=-r_field; dy<=r_field; ++dy) {
+                    for(int dx=-r_field; dx<=r_field; ++dx) {
+                         if(dx==0 && dy==0 && dz==0) continue;
+                         int nx = tx+dx, ny = ty+dy, nz = tz+dz;
+                         int n_idx = getIndex(nx, ny, nz);
+                         if(n_idx != -1) {
+                             const Cellule& f_cell = read_grid[n_idx];
+                             if(f_cell.is_alive) {
+                                 float dist = std::sqrt(dx*dx + dy*dy + dz*dz);
+                                 float influence = std::exp(-params.ALPHA_ATTENUATION * dist);
+                                 bonus_champ_E += f_cell.E * influence;
+                                 bonus_champ_C += f_cell.C * influence;
+                             }
+                         }
+                    }
                 }
             }
 
-            float bonus_champ = (params.K_CHAMP_E * champ_E) - (params.K_CHAMP_C * champ_C); // Simplification sans exp decay complet pour perf
+            float bonus_champ = (params.K_CHAMP_E * bonus_champ_E) - (params.K_CHAMP_C * bonus_champ_C);
             float bonus_adh = params.K_ADH * count_adh;
 
             float score = gravity - pressure + inertia + bonus_champ + bonus_adh - params.COUT_MOUVEMENT;
@@ -581,9 +676,13 @@ void MondeSED::AppliquerDivisions() {
             int fy = std::get<1>(d.destination_fille);
             int fz = std::get<2>(d.destination_fille);
             fille.R = std::clamp(fille.R + deterministic_mutation(fx, fy, fz, 0), 0.0f, 1.0f);
-            fille.Sc = std::clamp(fille.Sc + deterministic_mutation(fx, fy, fz, 1), 0.0f, 1.0f);
         }
     }
+    // Safety check dynamic
+    // optimization: We do NOT count total cells here (O(N) is too slow).
+    // We rely on 'InitialiserMonde' to enforce start limits.
+    // If user wants to exceed limits, they use the Override checkbox.
+    // The physical grid size serves as the hard ceiling.
 }
 
 void MondeSED::AppliquerEchangesEnergie() {
@@ -757,4 +856,186 @@ bool MondeSED::ChargerParametresDepuisFichier(const std::string &nom_fichier) {
     }
   }
   return true;
+}
+
+// --- GPU IMPLEMENTATION ---
+
+// GLSL Layout Mirror
+struct CelluleGPU {
+    uint32_t Type_Alive; // Bits: [0-2] Type, [3] Alive
+    float E;
+    float D;
+    float C;
+    float L;
+    float M;
+    float R;
+    float Sc;
+    float P;      
+    float P_next; 
+    float Weights[27]; 
+    uint32_t History;
+    float Gradient;
+    int32_t Ref;
+    float E_cost;
+    int32_t Age;
+    float Padding; // Total 172 bytes
+};
+
+// Helper to load file content
+std::string LoadFileText(const std::string& path) {
+    std::ifstream file(path);
+    if(!file.is_open()) return "";
+    std::stringstream buffer;
+    buffer << file.rdbuf();
+    return buffer.str();
+}
+
+void MondeSED::InitGPU() {
+    if(gpu_initialized) return;
+
+    std::cout << "[GPU] Initializing Compute Shader..." << std::endl;
+
+    // 1. Load & Compile Shader
+    std::string code = LoadFileText("src/shaders/sed_compute.glsl");
+    if(code.empty()) {
+        std::cerr << "[GPU] Error: Could not load src/shaders/sed_compute.glsl" << std::endl;
+        return;
+    }
+    
+    // Check GL version via RLGL
+    // rlLoadComputeShaderProgram acts as a wrapper.
+    // However, we need to compile first.
+    // Since rlgl internal headers are not fully exposed for 'rlCompileShader' with type if not defined?
+    // RL_COMPUTE_SHADER is defined in rlgl.h.
+    
+    unsigned int shader_id = rlCompileShader(code.c_str(), RL_COMPUTE_SHADER);
+    if(shader_id == 0) {
+        std::cerr << "[GPU] Error: Compute Shader Compilation Failed." << std::endl;
+        return;
+    }
+    
+    compute_program_id = rlLoadComputeShaderProgram(shader_id);
+    if(compute_program_id == 0) {
+        std::cerr << "[GPU] Error: Program Linking Failed." << std::endl;
+        return;
+    }
+    
+    u_size_loc = rlGetLocationUniform(compute_program_id, "u_Size");
+    
+    // 2. Convert Data to GPU Format
+    std::vector<CelluleGPU> data_gpu(grille.size());
+    #pragma omp parallel for
+    for(int i=0; i<(int)grille.size(); ++i) {
+        const Cellule& src = grille[i];
+        CelluleGPU& dst = data_gpu[i];
+        
+        uint32_t type = src.T & 7;
+        uint32_t alive = src.is_alive ? 1 : 0;
+        dst.Type_Alive = type | (alive << 3);
+        
+        dst.E = src.E;
+        dst.D = src.D;
+        dst.C = src.C;
+        dst.L = src.L;
+        dst.M = src.M;
+        dst.R = src.R;
+        dst.Sc = src.Sc;
+        dst.P = src.P;
+        dst.P_next = 0.0f;
+        std::memcpy(dst.Weights, src.W, 27 * sizeof(float));
+        dst.History = src.H;
+        dst.Gradient = src.G;
+        // Fix: Use dst.Ref instead of src.Ref? No, src is Cellule.
+        dst.Ref = src.Ref;
+        dst.E_cost = src.E_cost;
+        dst.Age = src.A; // Fix: Cellule has A, not Age
+        dst.Padding = 0.0f;
+    }
+
+    size_t buffer_size = data_gpu.size() * sizeof(CelluleGPU);
+    ssbo_in = rlLoadShaderBuffer(buffer_size, data_gpu.data(), RL_DYNAMIC_COPY);
+    ssbo_out = rlLoadShaderBuffer(buffer_size, nullptr, RL_DYNAMIC_COPY);
+    
+    std::cout << "[GPU] SSBOs Created (" << (buffer_size / 1024 / 1024) << " MB each)." << std::endl;
+    
+    gpu_initialized = true;
+    use_gpu = true;
+}
+
+void MondeSED::StepGPU() {
+    if(!gpu_initialized) return;
+    
+    cycle_actuel++;
+    
+    rlEnableShader(compute_program_id);
+    
+    int sizes[3] = {size_x, size_y, size_z};
+    rlSetUniform(u_size_loc, sizes, RL_SHADER_UNIFORM_IVEC3, 1);
+    
+    // Bind current In/Out
+    rlBindShaderBuffer(ssbo_in, 0); 
+    rlBindShaderBuffer(ssbo_out, 1); 
+    
+    // Dispatch
+    int gx = (size_x + 7) / 8;
+    int gy = (size_y + 7) / 8;
+    int gz = (size_z + 7) / 8;
+    
+    rlComputeShaderDispatch(gx, gy, gz);
+    
+    rlDisableShader();
+    
+    // Swap Handles so 'ssbo_in' becomes the source of next frame (which holds latest data)
+    std::swap(ssbo_in, ssbo_out);
+}
+
+void MondeSED::SyncGPUToCPU() {
+    if(!gpu_initialized) return;
+    
+    std::vector<CelluleGPU> data_gpu(grille.size());
+    // Read from ssbo_in (which holds the result of the LAST step, because we swapped at end of StepGPU)
+    rlReadShaderBuffer(ssbo_in, data_gpu.data(), data_gpu.size() * sizeof(CelluleGPU), 0);
+    
+    #pragma omp parallel for
+    for(int i=0; i<(int)grille.size(); ++i) {
+        const CelluleGPU& src = data_gpu[i];
+        Cellule& dst = grille[i];
+        
+        uint32_t alive = (src.Type_Alive >> 3) & 1;
+        dst.is_alive = (alive != 0);
+        dst.T = src.Type_Alive & 7;
+        
+        dst.E = src.E;
+        dst.D = src.D;
+        dst.C = src.C;
+        dst.L = src.L;
+        dst.M = src.M;
+        dst.R = src.R;
+        dst.Sc = src.Sc;
+        dst.P = src.P;
+        std::memcpy(dst.W, src.Weights, 27 * sizeof(float));
+        dst.H = src.History;
+        dst.G = src.Gradient;
+        dst.Ref = src.Ref;
+        dst.E_cost = src.E_cost;
+        dst.A = src.Age; // Fix: Assign to A
+    }
+}
+
+bool MondeSED::CheckGPUSupport() {
+    // Basic check: Can we compile a dummy compute shader?
+    // Requires OpenGL context initialized (which Raylib does in InitWindow).
+    // Caution: MondeSED might be created BEFORE InitWindow if global or early init.
+    // Assuming MondeSED is created AFTER InitWindow in main.cpp.
+    
+    // Simple dummy shader
+    const char* dummy_code = "#version 430\n layout(local_size_x=1) in; void main(){}";
+    unsigned int shader = rlCompileShader(dummy_code, RL_COMPUTE_SHADER);
+    if(shader != 0) {
+        // Warning: We should unload it to be clean, but rlgl doesn't expose UnloadShader easily for IDs?
+        // actually rlUnloadShaderProgram uses program ID. 
+        // We just checked compilation.
+        return true;
+    }
+    return false;
 }

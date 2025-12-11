@@ -1,211 +1,254 @@
 #ifndef MONDESED_H
 #define MONDESED_H
 
+#include <array>
+#include <cstdint>
 #include <string>
 #include <tuple>
 #include <vector>
-#include <cstdint>
-#include <array>
 
 // --- Structures de Données Publiques ---
 
 /**
  * @struct ParametresGlobaux
  * @brief Contient tous les paramètres ajustables de la simulation.
- * Ces "leviers" permettent de modifier le comportement des lois sans recompiler.
+ * Ces "leviers" permettent de modifier le comportement des lois sans
+ * recompiler.
  */
 struct ParametresGlobaux {
-    // Loi 0: Thermodynamique & Survie
-    float K_THERMO = 0.001f;      // Coût énergétique par cycle (Métabolisme).
-    float D_PER_TICK = 0.002f;    // Augmentation de la dette (faim) par cycle.
-    float L_PER_TICK = 0.001f;    // Augmentation de l'ennui par cycle.
+  // Loi 0: Thermodynamique & Survie
+  float K_THERMO = 0.001f;   // Coût énergétique par cycle (Métabolisme).
+  float D_PER_TICK = 0.002f; // Augmentation de la dette (faim) par cycle.
+  float L_PER_TICK = 0.001f; // Augmentation de l'ennui par cycle.
 
-    // Loi 1: Dynamique (Mouvement)
-    float K_D = 1.0f;             // Poids gravitaire (Dette).
-    float K_C = 0.5f;             // Poids répulsif (Stress).
-    float K_M = 0.5f;             // Poids inertiel (Mémoire).
-    float K_ADH = 0.5f;           // Poids adhésion (Cohésion sociale/tissulaire).
-    float COUT_MOUVEMENT = 0.01f; // Coût énergétique d'un déplacement.
+  // Loi 1: Dynamique (Mouvement)
+  float K_D = 1.0f;             // Poids gravitaire (Dette).
+  float K_C = 0.5f;             // Poids répulsif (Stress).
+  float K_M = 0.5f;             // Poids inertiel (Mémoire).
+  float K_ADH = 0.5f;           // Poids adhésion (Cohésion sociale/tissulaire).
+  float COUT_MOUVEMENT = 0.01f; // Coût énergétique d'un déplacement.
 
-    // Loi 2: Reproduction (Mitose)
-    float SEUIL_ENERGIE_DIVISION = 1.8f;
-    float COUT_DIVISION = 0.0f;   // Coût extra (optionnel), sinon conservation stricte.
+  // Loi 2: Reproduction (Mitose)
+  float SEUIL_ENERGIE_DIVISION = 1.8f;
+  float COUT_DIVISION =
+      0.0f; // Coût extra (optionnel), sinon conservation stricte.
 
-    // Loi 3: Champs (Action à distance)
-    float RAYON_DIFFUSION = 2.0f; // Rayon d'influence des champs.
-    float ALPHA_ATTENUATION = 1.0f; // Coefficient d'atténuation (exp(-alpha * dist)).
-    float K_CHAMP_E = 1.0f;       // Poids du champ d'énergie.
-    float K_CHAMP_C = 1.0f;       // Poids du champ de stress.
+  // Loi 3: Champs (Action à distance)
+  float RAYON_DIFFUSION = 2.0f; // Rayon d'influence des champs.
+  float ALPHA_ATTENUATION =
+      1.0f;               // Coefficient d'atténuation (exp(-alpha * dist)).
+  float K_CHAMP_E = 1.0f; // Poids du champ d'énergie.
+  float K_CHAMP_C = 1.0f; // Poids du champ de stress.
 
-    // Loi 4: Osmose (Échange Énergétique)
-    float FACTEUR_ECHANGE_ENERGIE = 0.1f;
-    float SEUIL_DIFFERENCE_ENERGIE = 0.2f; // Peut-être pas dans la doc V8, mais utile ?
-    float SEUIL_SIMILARITE_R = 0.1f; // Tolerance génétique.
-    float MAX_FLUX_ENERGIE = 0.05f;  // Limite par échange pour stabilité.
+  // Loi 4: Osmose (Échange Énergétique)
+  float FACTEUR_ECHANGE_ENERGIE = 0.1f;
+  float SEUIL_DIFFERENCE_ENERGIE =
+      0.2f;                        // Peut-être pas dans la doc V8, mais utile ?
+  float SEUIL_SIMILARITE_R = 0.1f; // Tolerance génétique.
+  float MAX_FLUX_ENERGIE = 0.05f;  // Limite par échange pour stabilité.
 
-    // Loi 5: Interaction Forte (Psychique)
-    float FACTEUR_ECHANGE_PSYCHIQUE = 0.1f;
+  // Loi 5: Interaction Forte (Psychique)
+  float FACTEUR_ECHANGE_PSYCHIQUE = 0.1f;
 
-    // Morphogenèse (Lois Structurelles)
-    float LAMBDA_GRADIENT = 0.1f; // Pour calcul du gradient G.
-    float SEUIL_SOMA = 0.3f;      // Seuil G pour devenir Soma.
-    float SEUIL_NEURO = 0.7f;     // Seuil G pour devenir Neurone.
+  // Morphogenèse (Lois Structurelles)
+  float LAMBDA_GRADIENT = 0.1f; // Pour calcul du gradient G.
+  float SEUIL_SOMA = 0.3f;      // Seuil G pour devenir Soma.
+  float SEUIL_NEURO = 0.7f;     // Seuil G pour devenir Neurone.
 
-    // Dynamique Neurale (Temps Rapide)
-    int TICKS_NEURAUX_PAR_PHYSIQUE = 5; // N
-    float COUT_SPIKE = 0.005f;
-    int PERIODE_REFRACTAIRE = 2; // En ticks neuraux.
-    float SEUIL_FIRE = 0.8f;     // Seuil activation neurone.
-    float DECAY_SYNAPSE = 0.999f;
-    float LEARN_RATE = 0.1f;
-    float RAYON_IGNITION = 2.0f;
+  // Dynamique Neurale (Temps Rapide)
+  int TICKS_NEURAUX_PAR_PHYSIQUE = 5; // N
+  float COUT_SPIKE = 0.005f;
+  int PERIODE_REFRACTAIRE = 2; // En ticks neuraux.
+  float SEUIL_FIRE = 0.85f;    // Seuil activation neurone. (Spec: 0.85)
+  float DECAY_SYNAPSE = 0.999f;
+  float LEARN_RATE = 0.05f;    // (Spec: 0.05)
+  float RAYON_IGNITION = 4.0f; // (Spec: 4)
 
-    // Mémoire
-    float TAUX_OUBLI = 0.01f;     // Décroissance exponentielle de la mémoire (matches 0.99 decay).
+  // Mémoire
+  float TAUX_OUBLI =
+      0.01f; // Décroissance exponentielle de la mémoire (matches 0.99 decay).
 
-    // Exportation
-    int intervalle_export = 10;
+  // Exportation
+  int intervalle_export = 10;
+
+  // --- Sécurité & Limites (Optimisation) ---
+  // Limites strictes pour éviter les crashs sur configs modestes.
+  size_t MAX_CELLS = 1000000; // 1M cellules par défaut (Override par init)
+  size_t MAX_RAM_MB = 1024;   // 1GO RAM Max pour la simu
+  bool limit_safety_override =
+      false; // "God Mode": Désactive les limites de sécurité.
 };
 
 /**
  * @struct Cellule
  * @brief Représente l'état complet d'un Voxel dans la grille du monde.
- * Les noms de variables (E, D, C, etc.) sont courts pour correspondre à la documentation mathématique.
+ * Les noms de variables (E, D, C, etc.) sont courts pour correspondre à la
+ * documentation mathématique.
  */
 struct Cellule {
-    // --- Identité ---
-    uint8_t T = 0;   // Type: 0=Souche, 1=Soma, 2=Neurone
+  // --- Identité ---
+  uint8_t T = 0; // Type: 0=Souche, 1=Soma, 2=Neurone
 
-    // --- Constantes de Naissance (Morphologie) ---
-    float R = 0.0f;  // Résistance Innée: "facteur rebelle", influence les interactions.
-    float Sc = 0.0f; // Seuil Critique: tolérance maximale au stress.
+  // --- Constantes de Naissance (Morphologie) ---
+  float R =
+      0.0f; // Résistance Innée: "facteur rebelle", influence les interactions.
+  float Sc = 0.0f; // Seuil Critique: tolérance maximale au stress.
 
-    // --- Variables Dynamiques (État Physique) ---
-    float E = 0.0f;  // Énergie: ressource vitale.
-    float D = 0.0f;  // Dette de Besoin: pression des besoins (faim, etc.), pilote le déplacement.
-    float C = 0.0f;  // Charge Émotionnelle: niveau de stress.
-    float L = 0.0f;  // Dette de Stimulus: niveau d'ennui.
-    float M = 0.0f;  // Mémoire: mémorise la plus haute énergie vue dans le voisinage.
-    int A = 0;       // Âge: compteur de cycles de vie.
+  // --- Variables Dynamiques (État Physique) ---
+  float E = 0.0f; // Énergie: ressource vitale.
+  float D = 0.0f; // Dette de Besoin: pression des besoins (faim, etc.), pilote
+                  // le déplacement.
+  float C = 0.0f; // Charge Émotionnelle: niveau de stress.
+  float L = 0.0f; // Dette de Stimulus: niveau d'ennui.
+  float M =
+      0.0f;  // Mémoire: mémorise la plus haute énergie vue dans le voisinage.
+  int A = 0; // Âge: compteur de cycles de vie.
 
-    // --- Variables Neurales & Spatiales ---
-    float P = 0.0f;  // Potentiel électrique [-1, 1].
-    int Ref = 0;     // Compteur réfractaire.
-    float E_cost = 0.0f; // Coût énergétique accumulé (spikes).
-    float W[27] = {0.0f}; // Poids synaptiques (26 voisins + centre inutilisé).
-    uint32_t H = 0;  // Historique des spikes (Bitfield).
-    float G = 0.0f;  // Gradient spatial.
+  // --- Variables Neurales & Spatiales ---
+  float P = 0.0f;       // Potentiel électrique [-1, 1].
+  int Ref = 0;          // Compteur réfractaire.
+  float E_cost = 0.0f;  // Coût énergétique accumulé (spikes).
+  float W[27] = {0.0f}; // Poids synaptiques (26 voisins + centre inutilisé).
+  uint32_t H = 0;       // Historique des spikes (Bitfield).
+  float G = 0.0f;       // Gradient spatial.
 
-    bool is_alive = false; // État de vie de la cellule.
+  bool is_alive = false; // État de vie de la cellule.
 };
 
 // --- Structures pour Actions Différées ---
-// Ces structures stockent les actions décidées pendant la phase de lecture
-// pour les appliquer plus tard dans la phase d'écriture, garantissant le déterminisme.
-
 struct MouvementSouhaite {
-    std::tuple<int, int, int> source;
-    std::tuple<int, int, int> destination;
-    float dette_besoin_source; // Utilisé pour la résolution de conflit.
-    int index_source; // Pour tie-breaker stable
+  std::tuple<int, int, int> source;
+  std::tuple<int, int, int> destination;
+  float dette_besoin_source; // Utilisé pour la résolution de conflit.
+  int index_source;          // Pour tie-breaker stable
 };
 
 struct DivisionSouhaitee {
-    std::tuple<int, int, int> source_mere;
-    std::tuple<int, int, int> destination_fille;
-    float energie_mere; // Utilisé pour la résolution de conflit.
+  std::tuple<int, int, int> source_mere;
+  std::tuple<int, int, int> destination_fille;
+  float energie_mere; // Utilisé pour la résolution de conflit.
 };
 
 struct EchangeEnergieSouhaite {
-    std::tuple<int, int, int> source;
-    std::tuple<int, int, int> destination;
-    float montant_energie;
+  std::tuple<int, int, int> source;
+  std::tuple<int, int, int> destination;
+  float montant_energie;
 };
 
 struct EchangePsychiqueSouhaite {
-    std::tuple<int, int, int> source;
-    std::tuple<int, int, int> destination;
-    float montant_C;
-    float montant_L;
+  std::tuple<int, int, int> source;
+  std::tuple<int, int, int> destination;
+  float montant_C;
+  float montant_L;
 };
 
 /**
  * @class MondeSED
- * @brief Classe principale gérant la grille de simulation, les lois et l'état global.
+ * @brief Classe principale gérant la grille de simulation, les lois et l'état
+ * global.
  */
 class MondeSED {
 public:
-    // --- Configuration et Cycle de Vie ---
-    MondeSED(int size_x, int size_y, int size_z);
-    void InitialiserMonde(unsigned int seed, float initial_density = 0.5f);
-    void AvancerTemps();
-    void ExporterEtatMonde(const std::string& nom_de_base) const;
+  // --- Configuration et Cycle de Vie ---
+  MondeSED(int size_x, int size_y, int size_z);
+  void InitialiserMonde(unsigned int seed, float initial_density = 0.5f);
+  void AvancerTemps();
+  void ExporterEtatMonde(const std::string &nom_de_base) const;
 
-    // --- Sauvegarde et Chargement ---
-    bool SauvegarderEtat(const std::string& nom_fichier) const;
-    bool ChargerEtat(const std::string& nom_fichier);
-    bool ChargerParametresDepuisFichier(const std::string& nom_fichier);
+  // --- GPU Support ---
+  bool use_gpu = false;
+  bool gpu_initialized = false;
+  void InitGPU();
+  void StepGPU();
+  void SyncGPUToCPU();           // Readback for visualization
+  static bool CheckGPUSupport(); // Helper to check capabilities
 
-    // --- Accesseurs (Getters) ---
-    const std::vector<Cellule>& getGrille() const;
-    int getTailleX() const { return size_x; }
-    int getTailleY() const { return size_y; }
-    int getTailleZ() const { return size_z; }
-    int getCycleActuel() const { return cycle_actuel; }
-    unsigned int getSeed() const { return current_seed; }
-    int getNombreCellulesVivantes() const;
+  // --- Sauvegarde et Chargement ---
+  bool SauvegarderEtat(const std::string &nom_fichier) const;
+  bool ChargerEtat(const std::string &nom_fichier);
+  bool ChargerParametresDepuisFichier(const std::string &nom_fichier);
 
-    // --- Paramètres Publics ---
-    ParametresGlobaux params; // Permet à l'UI de modifier les paramètres en temps réel.
+  // --- Accesseurs (Getters) ---
+  const std::vector<Cellule> &getGrille() const;
+  int getTailleX() const { return size_x; }
+  int getTailleY() const { return size_y; }
+  int getTailleZ() const { return size_z; }
+  int getCycleActuel() const { return cycle_actuel; }
+  unsigned int getSeed() const { return current_seed; }
+  int getNombreCellulesVivantes() const;
+
+  // --- Helpers Publics (UI) ---
+  int getIndex(int x, int y, int z) const;
+  Cellule &getCellule(int x, int y, int z);
+  const Cellule &getCellule(int x, int y, int z,
+                            const std::vector<Cellule> &grid) const;
+
+  // --- Paramètres Publics ---
+  ParametresGlobaux
+      params; // Permet à l'UI de modifier les paramètres en temps réel.
 
 private:
-    // --- État Interne ---
-    int size_x, size_y, size_z;
-    int cycle_actuel = 0;
-    unsigned int current_seed = 0;
-    std::vector<Cellule> grille;
+  // --- État Interne ---
+  int size_x, size_y, size_z;
+  int cycle_actuel = 0;
+  unsigned int current_seed = 0;
+  std::vector<Cellule> grille;
 
-    // Barycentre pour le Gradient (G)
-    float barycentre_x = 0, barycentre_y = 0, barycentre_z = 0;
+  // Barycentre pour le Gradient (G)
+  float barycentre_x = 0, barycentre_y = 0, barycentre_z = 0;
 
-    // --- Vecteurs d'Actions Différées ---
-    std::vector<MouvementSouhaite> mouvements_souhaites;
-    std::vector<DivisionSouhaitee> divisions_souhaitees;
-    std::vector<EchangeEnergieSouhaite> echanges_energie_souhaites;
-    std::vector<EchangePsychiqueSouhaite> echanges_psychiques_souhaites;
+  // --- Vecteurs d'Actions Différées ---
+  std::vector<MouvementSouhaite> mouvements_souhaites;
+  std::vector<DivisionSouhaitee> divisions_souhaitees;
+  std::vector<EchangeEnergieSouhaite> echanges_energie_souhaites;
+  std::vector<EchangePsychiqueSouhaite> echanges_psychiques_souhaites;
 
-    // --- Fonctions d'Application des Lois (Logique Interne) ---
-    void CalculerBarycentre();
-    void ExecuterCycleNeural(); // Groupe B (N fois)
+  // --- GPU State ---
+  unsigned int compute_program_id = 0;
+  unsigned int ssbo_in = 0;
+  unsigned int ssbo_out = 0;
+  unsigned int u_size_loc = 0;
+  unsigned int u_time_loc = 0;
 
-    // Groupe A & C & D (Preparation Phase)
-    void AppliquerLoisStructurelles(int x, int y, int z); // Gradient G, Différenciation T
-    void AppliquerLoiApprentissage(int x, int y, int z, const std::vector<Cellule>& read_grid); // Hebb W
-    void AppliquerLoiMemoire(int x, int y, int z, const std::vector<Cellule>& read_grid); // M
-    void AppliquerLoiMetabolisme(int x, int y, int z); // E, D, L update (Loi 7 partie 1)
+  // --- Fonctions d'Application des Lois (Logique Interne) ---
+  void CalculerBarycentre();
+  void ExecuterCycleNeural(); // Groupe B (N fois)
 
-    // Décisions (Phase Lecture)
-    void AppliquerLoiMouvement(int x, int y, int z, const std::vector<Cellule>& read_grid);
-    void AppliquerLoiDivision(int x, int y, int z, const std::vector<Cellule>& read_grid);
-    void AppliquerLoiEchange(int x, int y, int z, const std::vector<Cellule>& read_grid);
-    void AppliquerLoiPsychisme(int x, int y, int z, const std::vector<Cellule>& read_grid);
+  // Groupe A & C & D (Preparation Phase)
+  void AppliquerLoisStructurelles(int x, int y,
+                                  int z); // Gradient G, Différenciation T
+  void
+  AppliquerLoiApprentissage(int x, int y, int z,
+                            const std::vector<Cellule> &read_grid); // Hebb W
+  void AppliquerLoiMemoire(int x, int y, int z,
+                           const std::vector<Cellule> &read_grid); // M
+  void AppliquerLoiMetabolisme(int x, int y,
+                               int z); // E, D, L update (Loi 7 partie 1)
 
-    // --- Fonctions de Résolution (Logique Interne - Phase Ecriture) ---
-    void AppliquerMouvements();
-    void AppliquerDivisions();
-    void AppliquerEchangesEnergie();
-    void AppliquerEchangesPsychiques();
-    void FinaliserCycle(); // Clamping, Mort
+  // Décisions (Phase Lecture)
+  void AppliquerLoiMouvement(int x, int y, int z,
+                             const std::vector<Cellule> &read_grid);
+  void AppliquerLoiDivision(int x, int y, int z,
+                            const std::vector<Cellule> &read_grid);
+  void AppliquerLoiEchange(int x, int y, int z,
+                           const std::vector<Cellule> &read_grid);
+  void AppliquerLoiPsychisme(int x, int y, int z,
+                             const std::vector<Cellule> &read_grid);
 
-    // --- Fonctions Utilitaires (Logique Interne) ---
-    int getIndex(int x, int y, int z) const;
-    Cellule& getCellule(int x, int y, int z);
-    const Cellule& getCellule(int x, int y, int z, const std::vector<Cellule>& grid) const;
+  // --- Fonctions de Résolution (Logique Interne - Phase Ecriture) ---
+  void AppliquerMouvements();
+  void AppliquerDivisions();
+  void AppliquerEchangesEnergie();
+  void AppliquerEchangesPsychiques();
+  void FinaliserCycle(); // Clamping, Mort
 
-    // --- Fonctions Utilitaires (Optimisation) ---
-    // Nouvelle méthode optimisée qui écrit directement dans un tableau pré-alloué.
-    // Retourne aussi les indices dans le tableau 'voisins_indices' si fourni
-    void GetCoordsVoisins_Optimized(int x, int y, int z, std::tuple<int, int, int>* voisins_array, int* indices_array, int& count) const;
+  // --- Fonctions Utilitaires (Optimisation) ---
+  // Nouvelle méthode optimisée qui écrit directement dans un tableau
+  // pré-alloué. Retourne aussi les indices dans le tableau 'voisins_indices' si
+  // fourni
+  void GetCoordsVoisins_Optimized(int x, int y, int z,
+                                  std::tuple<int, int, int> *voisins_array,
+                                  int *indices_array, int &count) const;
 };
 
 #endif // MONDESED_H

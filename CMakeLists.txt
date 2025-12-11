@@ -31,6 +31,8 @@ endif()
 add_executable(sed_lab
     src/main.cpp
     src/MondeSED.cpp
+    src/Interface.cpp
+    src/Renderer.cpp
     libs/imgui/imgui.cpp
     libs/imgui/imgui_draw.cpp
     libs/imgui/imgui_widgets.cpp
