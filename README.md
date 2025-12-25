@@ -1,28 +1,48 @@
 # 🔬 Projet SED : Simulateur d'Émergence Déterministe
 
-> "Eternity is not just a concept, it compiles."
-
 ---
 
 ## 1. Objectif du Projet
 
-Ce projet est une initiative de recherche-création visant à prouver que la complexité de la vie et de la psyché peut **émerger de lois mathématiques déterministes**. Le **SED** construit un univers où l'existence d'organismes stables est une nécessité mathématique, simulé désormais à **échelle massive** grâce au GPU.
+Ce projet est une initiative personnelle de recherche-création visant à prouver que la complexité de la vie, de la psyché, et de la stabilité peut **émerger de lois mathématiques déterministes et traçables**. Le **SED** est la construction d'un univers où l'existence d'organismes stables est une nécessité mathématique.
 
 ---
 
-## 2. Architecture "Titanic" (GPU Compute)
+## 2. Vision du Projet : L'Émergence par la Loi
 
-La version 8.0 introduit l'architecture **"Titanic"**, transformant le simulateur en un moteur massivement parallèle exécuté intégralement sur la carte graphique (GPU).
+### A. L'Ambition Fondamentale
 
-### 🚀 Nouveautés Techniques
-*   **Moteur "Full GPU"** : La logique de simulation (Cellules, Synapses, Physique) est écrite en **GLSL Compute Shaders** (OpenGL 4.3).
-*   **Rendu Instancié (Zero-Copy)** : Les millions de cellules sont dessinées directement depuis la mémoire GPU (SSBO) sans transfert vers le CPU, éliminant tout goulot d'étranglement.
-*   **Double Horloge** : Séparation temporelle entre la boucle neurale rapide (Spikes, Potentiels) et la boucle physique lente (Métabolisme, Mouvement).
-*   **Déterminisme Absolu** : Même sur GPU, la simulation reste 100% déterministe grâce à un pipeline strict (Lecture/Écriture séparées).
+Mon objectif est de créer un **outil de simulation** capable de générer des entités numériques qui possèdent une "âme" faite de code. Je cherche à :
+
+1.  **Prouver le Déterminisme :** Démontrer que les comportements complexes (la survie, le stress, l'ennui) sont le **résultat unique et prévisible** de conditions initiales (la morphologie) et d'une succession d'événements (l'histoire), sans aucune variable aléatoire.
+2.  **Créer la Vie Stable :** Construire des lois si fondamentales qu'elles garantissent la création d'organismes **multicellulaires stables** qui s'auto-entretiennent et se protègent du chaos environnant.
+
+### B. Influence Clé : La Règle et l'Émergence
+
+Ma fondation conceptuelle se base sur l'idée de la **simplicité générant la complexité**.
+
+| Influence | Concept Appliqué au SED |
+| :--- | :--- |
+| **John Horton Conway (Jeu de la Vie)** | Le SED est un **Automate Cellulaire 3D**. Il utilise des règles de transition simples, appliquées localement à chaque Voxel, pour générer des structures globales complexes. |
+| **Philosophie des Systèmes (Systèmes Auto-Organisés)** | L'**intelligence** et la **stabilité** ne sont pas codées directement. Elles sont des propriétés qui **émergent** naturellement de l'interaction des cellules selon les lois définies. |
 
 ---
 
-## 3. Installation et Utilisation
+## 3. Architecture Technique V8 ("Titanic")
+
+Le projet a évolué vers une architecture **"Titanic"**, transformant le simulateur en un moteur massivement parallèle exécuté intégralement sur le GPU.
+
+### A. Moteur "Full GPU" Compute Shaders
+*   **Langage :** C++ (Hôte) + **GLSL Compute Shaders** (Coeur Logique).
+*   **Performance :** L'intégralité de la simulation (Physique, Métabolisme, Synapses) s'exécute sur la carte graphique, permettant de simuler des millions de cellules à 60 FPS.
+*   **Double Horloge :** Séparation temporelle entre la boucle neurale rapide (Spikes) et la boucle physique lente (Mouvement).
+
+### B. Rendu Instancié (Zero-Copy)
+L'application utilise **OpenGL 4.3** pour dessiner les cellules directement depuis la mémoire GPU (SSBO) sans transfert coûteux vers le CPU.
+
+---
+
+## 4. Installation et Utilisation
 
 ### A. Windows (Recommandé) ✨
 
@@ -57,28 +77,6 @@ cmake ..
 cmake --build .
 ./sed_lab
 ```
-
----
-
-## 4. Fonctionnalités
-
-### Contrôles
-*   **Caméra Orbite** : `Clic Molette` + Souris.
-*   **Panoramique** : `Shift` + `Clic Molette`.
-*   **Zoom** : `Molette`.
-
-### Visualisation
-*   **Vibrant & Dynamic** : Les cellules pulsent et changent de couleur selon leur état interne (Énergie, Stress, Dette).
-*   **Réseau Neuronal** : Visualisation des connexions synaptiques actives (Touche `N` ou via UI).
-*   **Champs de Force** : Visualisation des gradients invisibles qui guident le mouvement (Touche `F`).
-
----
-
-## 5. Philosophie
-
-> "La simplicité est la sophistication suprême." - Leonardo da Vinci
-
-Le SED ne code pas l'intelligence. Il code les **contraintes** (Faim, Douleur, Connexion). L'intelligence est ce qui émerge pour satisfaire ces contraintes.
 
 ---
 
