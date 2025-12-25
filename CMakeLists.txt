@@ -3,6 +3,7 @@ project(SED_LAB CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+add_compile_definitions(GRAPHICS_API_OPENGL_43)  # Request Compute Shader support
 
 # --- Raylib Dependency ---
 # Find the raylib package. With the vcpkg toolchain file,

@@ -436,8 +436,12 @@ void Interface::DrawViewport(Camera3D &camera, RenderTexture2D &viewTexture,
   // 2. Render Scene to this Texture (Immediate Update)
   // We need to pass the selected coords. We can grab them from externs for now.
   extern int selected_cell_coords[3];
-  Renderer::Render(monde, camera, viewTexture, selected_cell_coords,
-                   renderSettings);
+  if (monde && monde->use_gpu) {
+    Renderer::RenderTitanic(monde, camera, viewTexture, renderSettings);
+  } else {
+    Renderer::Render(monde, camera, viewTexture, selected_cell_coords,
+                     renderSettings);
+  }
 
   // 3. Display Texture
   if (viewTexture.id != 0) {

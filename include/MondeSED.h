@@ -21,6 +21,12 @@ struct ParametresGlobaux {
   float D_PER_TICK = 0.002f; // Augmentation de la dette (faim) par cycle.
   float L_PER_TICK = 0.001f; // Augmentation de l'ennui par cycle.
 
+  // Regulation Dynamique (Homeostasie)
+  float TARGET_TOTAL_ENERGY = 10000.0f; // Energie totale cible du système
+  float ADAPTATION_RATE = 0.01f;        // Vitesse d'adaptation des coûts
+  float K_THERMO_INITIAL = 0.001f;      // Pour référence/reset
+  float COUT_MOUVEMENT_INITIAL = 0.01f; // Pour référence/reset
+
   // Loi 1: Dynamique (Mouvement)
   float K_D = 1.0f;             // Poids gravitaire (Dette).
   float K_C = 0.5f;             // Poids répulsif (Stress).
@@ -159,9 +165,16 @@ public:
   bool use_gpu = false;
   bool gpu_initialized = false;
   void InitGPU();
+  void InitTitanic(); // New Massive Engine
   void StepGPU();
+  void StepTitanic();            // Execute Double-Clock Pipeline
   void SyncGPUToCPU();           // Readback for visualization
   static bool CheckGPUSupport(); // Helper to check capabilities
+
+  // Titanic Shader State
+  unsigned int titanic_program = 0;
+  int loc_tick = 0;
+  int loc_pass = 0;
 
   // --- Sauvegarde et Chargement ---
   bool SauvegarderEtat(const std::string &nom_fichier) const;
@@ -169,7 +182,11 @@ public:
   bool ChargerParametresDepuisFichier(const std::string &nom_fichier);
 
   // --- Accesseurs (Getters) ---
-  const std::vector<Cellule> &getGrille() const;
+  const std::vector<Cellule> &getGrille() const; // GPU Access
+  unsigned int GetSSBO() const { return ssbo_in; }
+  int GetCellCount() const { return size_x * size_y * size_z; }
+
+  // Getters
   int getTailleX() const { return size_x; }
   int getTailleY() const { return size_y; }
   int getTailleZ() const { return size_z; }

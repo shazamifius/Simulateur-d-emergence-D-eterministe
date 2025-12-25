@@ -16,6 +16,9 @@ public:
   static void Unload();
   static void Render(MondeSED *monde, Camera3D &camera, RenderTexture2D &target,
                      int selectedCoords[3], const RenderSettings &settings);
+  static void RenderTitanic(MondeSED *monde, Camera3D &camera,
+                            RenderTexture2D &target,
+                            const RenderSettings &settings);
 
 private:
   static void DrawTechGrid(int slices, float spacing);

@@ -369,4 +369,140 @@ void Renderer::DrawFieldVectors(MondeSED *monde, float density) {
     }
   }
   rlEnd();
+  rlEnd();
+}
+
+static int titanic_vis_loc_size = -1;
+static int titanic_vis_loc_time = -1;
+static int titanic_vis_loc_model = -1;
+static int titanic_vis_loc_mvp = -1;
+static unsigned int titanic_vis_shader = 0;
+static Mesh cubeMesh = {0};
+static Material cubeMat = {0};
+
+void Renderer::RenderTitanic(MondeSED *monde, Camera3D &camera,
+                             RenderTexture2D &target,
+                             const RenderSettings &settings) {
+  if (target.id == 0 || !monde)
+    return;
+
+  // 1. Initialize Shader & Mesh (Lazy Initialization)
+  // This ensures we only load GPU resources when actively trying to render
+  if (titanic_vis_shader == 0) {
+    if (!initialized)
+      return;
+
+    std::string vsCode = LoadFileText("src/shaders/sed_vis.glsl");
+    std::string vs = "#version 430\n#define VERTEX\n" + vsCode;
+    std::string fs = "#version 430\n#define FRAGMENT\n" + vsCode;
+
+    Shader shd = LoadShaderFromMemory(vs.c_str(), fs.c_str());
+    titanic_vis_shader = shd.id;
+
+    titanic_vis_loc_size = GetShaderLocation(shd, "u_Size");
+    titanic_vis_loc_time = GetShaderLocation(shd, "u_Time");
+    titanic_vis_loc_model = GetShaderLocation(shd, "matModel");
+    titanic_vis_loc_mvp = GetShaderLocation(shd, "mvp");
+
+    cubeMesh = GenMeshCube(1.0f, 1.0f, 1.0f);
+    UploadMesh(&cubeMesh, false); // Important: Upload to VRAM to generate VAO
+
+    cubeMat = LoadMaterialDefault();
+    cubeMat.shader = shd;
+  }
+
+  // 2. Setup Frame
+  BeginTextureMode(target);
+  ClearBackground(Color{13, 17, 23, 255}); // Dark BG
+  BeginMode3D(camera);
+
+  // Tech Grid (Still needed?)
+  if (settings.show_gizmos) {
+    DrawTechGrid(64, 1.0f);
+    Vector3 dims = {(float)monde->getTailleX(), (float)monde->getTailleY(),
+                    (float)monde->getTailleZ()};
+    Vector3 center = Vector3Scale(dims, 0.5f);
+    DrawCubeWiresV(center, dims, Color{48, 54, 61, 255});
+  }
+
+  // 3. Draw Instanced
+  // Lazy Init: Ensure GPU data is ready before rendering
+  // InitTitanic checks gpu_initialized internally so it's safe to call.
+  monde->InitTitanic();
+
+  unsigned int ssbo = monde->GetSSBO();
+  int count = monde->GetCellCount();
+
+  if (ssbo > 0 && count > 0 && settings.show_cells) {
+    rlEnableShader(titanic_vis_shader);
+
+    // Bind SSBO to Binding 0
+    rlBindShaderBuffer(ssbo, 0);
+
+    // Uniforms
+    int sizes[3] = {monde->getTailleX(), monde->getTailleY(),
+                    monde->getTailleZ()};
+    rlSetUniform(titanic_vis_loc_size, sizes, RL_SHADER_UNIFORM_IVEC3, 1);
+
+    float t = (float)GetTime();
+    rlSetUniform(titanic_vis_loc_time, &t, RL_SHADER_UNIFORM_FLOAT, 1);
+
+    Matrix matModel = MatrixIdentity();
+    Matrix matView = rlGetMatrixModelview();
+    Matrix matProj = rlGetMatrixProjection();
+    Matrix matMVP = MatrixMultiply(
+        matView, matProj); // simplified, rlgl handles it typically
+
+    // Send matrices? Raylib VS usually expects "mvp" or
+    // "matModelViewProjection" Our custom shader asks for "mvp".
+    rlSetUniformMatrix(titanic_vis_loc_mvp, matMVP);
+
+    // Draw Mesh Instanced
+    // Raylib doesn't expose DrawMeshInstanced easily for custom raw shader
+    // pipeline? DrawMeshInstanced() exists in Raylib 5.0! But we want to use
+    // OUR shader. DrawMeshInstanced uses the material's shader.
+
+    // Let's use Material approach?
+    // CubeMesh + Material(titanic_vis_shader).
+    // However, we need to bind SSBO *before* drawing. DrawMeshInstanced does
+    // not know about SSBO. So we MUST use rlEnableShader above, then
+    // DrawMeshInstanced? DrawMeshInstanced sets the shader from material.
+
+    // Workaround:
+    // 1. Set Material Shader
+    cubeMat.shader.id = titanic_vis_shader;
+    cubeMat.shader.locs[SHADER_LOC_MATRIX_MVP] = titanic_vis_loc_mvp;
+    cubeMat.shader.locs[SHADER_LOC_MATRIX_MODEL] = titanic_vis_loc_model;
+
+    // 2. Bind SSBO globally
+    rlBindShaderBuffer(ssbo, 0);
+
+    // 3. Draw
+    // Use rlgl wrappers where possible
+    rlEnableVertexArray(cubeMesh.vaoId);
+
+// glDrawElementsInstanced might not be exposed directly.
+// We can use rlDrawRenderBatch if we were batching.
+// Try raw call, but we need definitions if headers are missing.
+// Raylib's rlgl.h should define standard GL headers.
+// If undefined, we can define it:
+#ifndef GL_TRIANGLES
+#define GL_TRIANGLES 0x0004
+#endif
+#ifndef GL_UNSIGNED_SHORT
+#define GL_UNSIGNED_SHORT 0x1403
+#endif
+
+    // Use rlgl wrapper for instanced drawing which handles the GL call
+    // Offset 0, Count = indices count, Buffer = 0 (bound in VAO), Instances =
+    // cell count
+    rlDrawVertexArrayElementsInstanced(0, cubeMesh.triangleCount * 3, 0, count);
+
+    rlDisableVertexArray();
+    rlBindShaderBuffer(0, 0); // Unbind
+    rlDisableShader();
+  }
+
+  EndMode3D();
+  EndTextureMode();
 }
