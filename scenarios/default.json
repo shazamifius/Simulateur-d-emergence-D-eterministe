@@ -1,0 +1,16 @@
+{
+    "name": "Defaut",
+    "description": "Configuration standard avec un placement aléatoire restreint.",
+    "parameters": {
+        "K_THERMO": 0.001,
+        "D_PER_TICK": 0.002,
+        "L_PER_TICK": 0.001,
+        "SEUIL_ENERGIE_DIVISION": 1.8,
+        "RAYON_DIFFUSION": 2.0
+    },
+    "cells": [
+        {"x": 16, "y": 16, "z": 16, "type": 0, "energy": 1.0, "resistance": 0.5},
+        {"x": 15, "y": 16, "z": 16, "type": 0, "energy": 1.0, "resistance": 0.5},
+        {"x": 17, "y": 16, "z": 16, "type": 0, "energy": 1.0, "resistance": 0.5}
+    ]
+}

@@ -1,0 +1,31 @@
+{
+    "actions": [
+        {
+            "cycle": 10,
+            "type": 0,
+            "target": "K_D",
+            "val1": 3.0,
+            "val2": 0.0,
+            "val3": 0.0,
+            "val4": 0.0
+        },
+        {
+            "cycle": 20,
+            "type": 2,
+            "target": "BRUSH",
+            "val1": 16.0,
+            "val2": 16.0,
+            "val3": 16.0,
+            "val4": 1.0
+        },
+        {
+            "cycle": 30,
+            "type": 0,
+            "target": "SEUIL_ENERGIE_DIVISION",
+            "val1": 1.5,
+            "val2": 0.0,
+            "val3": 0.0,
+            "val4": 0.0
+        }
+    ]
+}

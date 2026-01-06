@@ -1,0 +1,17 @@
+# Build artifacts
+/build
+/sed_lab
+/setup_all.bat
+/start_simulation.bat
+
+# Cloned libraries / Dependencies
+/raylib/simulation.log
+/vcpkg
+/vcpkg_installed
+
+# VS artifacts
+/.vs
+/out
+*.pdb
+*.iobj
+*.ipdb
