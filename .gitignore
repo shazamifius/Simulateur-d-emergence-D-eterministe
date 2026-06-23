@@ -1,0 +1,26 @@
+# Rust build artifacts
+/target
+/Cargo.lock.lock
+
+# IDEs & Editors
+/.vs
+/out
+/.vscode
+/.idea
+*.suo
+*.user
+*.userossc
+*.sln
+*.vcxproj
+*.filters
+*.pdb
+*.iobj
+*.ipdb
+.DS_Store
+
+# Local application logs and run artifacts
+imgui.ini
+metrics_log.csv
+test_replay.json
+snapshot.json
+*.log
