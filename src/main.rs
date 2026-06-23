@@ -347,6 +347,8 @@ struct AppState {
     is_in_preload_mode: bool,
     preload_cycles_count: i32,
     preload_is_playing: bool,
+    is_currently_preloading: bool,
+    preload_current_step: i32,
 }
 
 #[derive(PartialEq, Clone, Copy)]
@@ -410,6 +412,8 @@ impl AppState {
             is_in_preload_mode: false,
             preload_cycles_count: 800,
             preload_is_playing: false,
+            is_currently_preloading: false,
+            preload_current_step: 0,
         }
     }
 
@@ -434,6 +438,8 @@ impl AppState {
         self.preload_index = 0;
         self.is_in_preload_mode = false;
         self.preload_is_playing = false;
+        self.is_currently_preloading = false;
+        self.preload_current_step = 0;
     }
 
     fn record_param_change(&mut self, name: &str, value: f32) {
@@ -540,6 +546,7 @@ fn apply_brush_action(state: &mut AppState, coords: (i32, i32, i32)) {
 }
 
 fn handle_interaction(state: &mut AppState, camera: &Camera3D) {
+    if state.is_currently_preloading { return; }
     if !state.mouse_on_gui && is_mouse_button_pressed(MouseButton::Left) {
         let (ray_origin, ray_direction) = get_mouse_ray(camera);
         if let Some((x, y, z, normal)) = raycast_world(state, ray_origin, ray_direction) {
@@ -865,6 +872,7 @@ fn draw_gui(state: &mut AppState) {
         egui::SidePanel::left("control_panel")
             .default_width(300.0)
             .show(egui_ctx, |ui| {
+                ui.set_enabled(!state.is_currently_preloading);
                 ui.heading("🧬 SED — Panneau de Contrôle");
                 ui.separator();
 
@@ -1313,6 +1321,41 @@ fn draw_gui(state: &mut AppState) {
                 ui.label("SED v9.0 — Rust Edition");
                 ui.label("Déterminisme bit-exact garanti");
             });
+
+        if state.is_currently_preloading {
+            egui::Window::new("⏳ Pré-chargement en cours...")
+                .anchor(egui::Align2::CENTER_CENTER, egui::vec2(0.0, 0.0))
+                .resizable(false)
+                .collapsible(false)
+                .movable(false)
+                .show(egui_ctx, |ui| {
+                    ui.vertical_centered(|ui| {
+                        ui.add_space(4.0);
+                        ui.add(egui::Label::new(
+                            egui::RichText::new("Veuillez patienter pendant que le simulateur pré-calcule les cycles.")
+                                .strong()
+                        ));
+                        ui.add_space(8.0);
+                        
+                        let progress = state.preload_current_step as f32 / state.preload_cycles_count as f32;
+                        ui.add(egui::ProgressBar::new(progress)
+                            .show_percentage()
+                            .text(format!("{}/{} cycles", state.preload_current_step, state.preload_cycles_count))
+                            .animate(true)
+                        );
+                        ui.add_space(8.0);
+                        
+                        if ui.button("❌ Annuler le pré-chargement").clicked() {
+                            state.is_currently_preloading = false;
+                            if !state.preloaded_states.is_empty() {
+                                state.monde = state.preloaded_states[0].clone();
+                            }
+                            state.preloaded_states.clear();
+                        }
+                        ui.add_space(4.0);
+                    });
+                });
+        }
     });
 
     egui_macroquad::draw();
@@ -1337,20 +1380,10 @@ fn lancer_prechargement(state: &mut AppState) {
     // Enregistrer l'état de départ initial
     state.preloaded_states.push(state.monde.clone());
 
-    // Calculer les cycles suivants et les cloner
-    for _ in 0..state.preload_cycles_count {
-        // Avancement manuel du monde sans affecter les logs ou l'état global direct si non voulu,
-        // mais avancer_un_cycle est parfait car il met à jour le monde et les stats.
-        avancer_un_cycle(state);
-        state.preloaded_states.push(state.monde.clone());
-    }
-
-    state.preload_index = 0;
-    state.is_in_preload_mode = true;
+    state.is_currently_preloading = true;
+    state.preload_current_step = 0;
     state.is_running = false;
     state.preload_is_playing = false;
-    
-    println!("[Preload] {} cycles pré-chargés en mémoire.", state.preload_cycles_count);
 }
 
 fn handle_camera_input(state: &mut AppState) {
@@ -1380,6 +1413,10 @@ fn handle_camera_input(state: &mut AppState) {
     let (_, wheel_y) = mouse_wheel();
     if wheel_y != 0.0 {
         state.cam_distance = (state.cam_distance - wheel_y * 2.0).clamp(5.0, 150.0);
+    }
+
+    if state.is_currently_preloading {
+        return;
     }
 
     if is_key_pressed(KeyCode::Space) {
@@ -1458,7 +1495,25 @@ async fn main() {
 
         handle_camera_input(&mut state);
 
-        if state.is_in_preload_mode {
+        if state.is_currently_preloading {
+            // Calculer un lot (batch) de cycles par frame
+            let batch_size = 20;
+            for _ in 0..batch_size {
+                if state.preload_current_step < state.preload_cycles_count {
+                    avancer_un_cycle(&mut state);
+                    state.preloaded_states.push(state.monde.clone());
+                    state.preload_current_step += 1;
+                } else {
+                    state.is_currently_preloading = false;
+                    state.preload_index = 0;
+                    state.is_in_preload_mode = true;
+                    state.is_running = false;
+                    state.preload_is_playing = false;
+                    println!("[Preload] {} cycles pré-chargés en mémoire.", state.preload_cycles_count);
+                    break;
+                }
+            }
+        } else if state.is_in_preload_mode {
             if state.preload_is_playing {
                 state.accum += get_frame_time();
                 let interval = 1.0 / state.speed;

@@ -150,7 +150,7 @@ impl ChunkIntentions {
 
 // --- Struct MondeSED ---
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct MondeSED {
     pub size_x: i32,
     pub size_y: i32,
@@ -161,6 +161,23 @@ pub struct MondeSED {
     #[serde(skip, default = "WorldMap::new")]
     pub read_map: WorldMap,
     pub params: ParametresGlobaux,
+}
+
+impl Clone for MondeSED {
+    fn clone(&self) -> Self {
+        let mut world_map = self.world_map.clone();
+        world_map.chunks.retain(|_, chunk| chunk.has_alive_cells);
+        Self {
+            size_x: self.size_x,
+            size_y: self.size_y,
+            size_z: self.size_z,
+            cycle_actuel: self.cycle_actuel,
+            current_seed: self.current_seed,
+            world_map,
+            read_map: WorldMap::new(),
+            params: self.params.clone(),
+        }
+    }
 }
 
 impl MondeSED {
@@ -225,6 +242,7 @@ impl MondeSED {
         for chunk in self.world_map.chunks.values_mut() {
             chunk.update_active_flags();
         }
+        self.world_map.chunks.retain(|_, chunk| chunk.has_alive_cells);
     }
 
     pub fn calculate_state_hash(&self) -> usize {
@@ -701,6 +719,7 @@ impl MondeSED {
             }
             chunk.update_active_flags();
         });
+        self.world_map.chunks.retain(|_, chunk| chunk.has_alive_cells);
     }
 }
 
