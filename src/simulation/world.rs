@@ -57,11 +57,35 @@ impl WorldMap {
     }
 
     pub fn get_cell_global(&self, wx: i32, wy: i32, wz: i32) -> Option<&Cell> {
+        if wy == 0 {
+            static BEDROCK_CELL: Cell = Cell {
+                t: CellType::Static,
+                r: 0.0,
+                sc: 0.5,
+                e: 1000.0,
+                d: 0.0,
+                c: 0.0,
+                l: 0.0,
+                m: 0.0,
+                a: 0,
+                p: 0.0,
+                r#ref: 0,
+                e_cost: 0.0,
+                w: [0.01; 27],
+                h: 0,
+                g: 0.0,
+                is_alive: true,
+            };
+            return Some(&BEDROCK_CELL);
+        }
         let (cx, cy, cz, lx, ly, lz) = Self::world_to_chunk_coords(wx, wy, wz);
         self.get_chunk(cx, cy, cz).map(|chk| chk.get_cell(lx, ly, lz))
     }
 
     pub fn get_cell_global_mut(&mut self, wx: i32, wy: i32, wz: i32) -> Option<&mut Cell> {
+        if wy == 0 {
+            return None;
+        }
         let (cx, cy, cz, lx, ly, lz) = Self::world_to_chunk_coords(wx, wy, wz);
         self.get_chunk_mut(cx, cy, cz).map(|chk| chk.get_cell_mut(lx, ly, lz))
     }
@@ -177,15 +201,7 @@ impl MondeSED {
 
         let mut rng = SmallRng::new(seed);
 
-        // 1. Plancher de Bedrock à Y=0
-        for z in 0..self.size_z {
-            for x in 0..self.size_x {
-                let (cx, cy, cz, lx, ly, lz) = WorldMap::world_to_chunk_coords(x, 0, z);
-                let chunk = self.world_map.get_or_create_chunk(cx, cy, cz);
-                let c = chunk.get_cell_mut(lx, ly, lz);
-                *c = Cell::new_static();
-            }
-        }
+        // (Plancher de Bedrock implicite à Y=0 géré globalement)
 
         // 2. Remplissage des cellules
         for z in 0..self.size_z {

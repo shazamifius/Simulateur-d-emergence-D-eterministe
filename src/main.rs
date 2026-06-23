@@ -111,15 +111,7 @@ fn charger_scenario(monde: &mut MondeSED, path: &str) -> Result<(), Box<dyn std:
     monde.read_map.clear();
     monde.cycle_actuel = 0;
     
-    // Plancher
-    for z in 0..monde.size_z {
-        for x in 0..monde.size_x {
-            let (cx, cy, cz, lx, ly, lz) = rust_sed::simulation::world::WorldMap::world_to_chunk_coords(x, 0, z);
-            let chunk = monde.world_map.get_or_create_chunk(cx, cy, cz);
-            let c = chunk.get_cell_mut(lx, ly, lz);
-            *c = rust_sed::simulation::cell::Cell::new_static();
-        }
-    }
+    // (Plancher de Bedrock implicite à Y=0 géré globalement)
     
     // Placement
     for cell in scenario.cells {
@@ -719,6 +711,38 @@ fn render_cells(state: &AppState) {
         }
     }
 
+    // Rendu dynamique du plancher de bedrock implicite à Y=0 sous les colonnes actives
+    if state.show_static {
+        let mut active_cols = std::collections::HashSet::new();
+        for key in state.monde.world_map.chunks.keys() {
+            if let Some(chunk) = state.monde.world_map.chunks.get(key) {
+                if chunk.has_alive_cells {
+                    active_cols.insert((key.x, key.z));
+                }
+            }
+        }
+        for (cx, cz) in active_cols {
+            for lx in 0..CHUNK_SIZE {
+                for lz in 0..CHUNK_SIZE {
+                    let wx = (cx * CHUNK_SIZE as i32 + lx as i32) as f32;
+                    let wz = (cz * CHUNK_SIZE as i32 + lz as i32) as f32;
+                    let col = Color::new(0.4, 0.4, 0.4, 0.4);
+                    draw_cube(
+                        vec3(wx, 0.0, wz),
+                        vec3(scale, scale, scale),
+                        None,
+                        col,
+                    );
+                    draw_cube_wires(
+                        vec3(wx, 0.0, wz),
+                        vec3(scale, scale, scale),
+                        Color::new(col.r * 0.6, col.g * 0.6, col.b * 0.6, 0.4),
+                    );
+                }
+            }
+        }
+    }
+
     if let Some((x, y, z)) = state.selected_cell {
         draw_cube_wires(
             vec3(x as f32, y as f32, z as f32),
@@ -729,30 +753,43 @@ fn render_cells(state: &AppState) {
 }
 
 // ===========================================================================
-// Rendu de la grille de référence
+// Rendu de la grille de référence (Dynamique & Infinie)
 // ===========================================================================
 
-fn render_grid(size: i32) {
-    let s = size as f32;
+fn render_grid(monde: &MondeSED, size: i32) {
+    let b = monde.calculer_barycentre();
+    // Arrondir le centre de la grille à la taille de bloc pour une stabilité visuelle
+    let cx = b.0.round() as i32;
+    let cz = b.2.round() as i32;
+
+    let half_size = size / 2;
     let grid_color = Color::new(0.3, 0.3, 0.3, 0.3);
     
-    for i in 0..=size {
+    let start_x = cx - half_size;
+    let end_x = cx + half_size;
+    let start_z = cz - half_size;
+    let end_z = cz + half_size;
+
+    for i in start_x..=end_x {
         draw_line_3d(
-            vec3(i as f32, 0.0, 0.0),
-            vec3(i as f32, 0.0, s),
+            vec3(i as f32, 0.0, start_z as f32),
+            vec3(i as f32, 0.0, end_z as f32),
             grid_color,
         );
     }
-    for i in 0..=size {
+    for i in start_z..=end_z {
         draw_line_3d(
-            vec3(0.0, 0.0, i as f32),
-            vec3(s, 0.0, i as f32),
+            vec3(start_x as f32, 0.0, i as f32),
+            vec3(end_x as f32, 0.0, i as f32),
             grid_color,
         );
     }
-    draw_line_3d(vec3(0.0, 0.0, 0.0), vec3(s * 0.3, 0.0, 0.0), RED);
-    draw_line_3d(vec3(0.0, 0.0, 0.0), vec3(0.0, s * 0.3, 0.0), GREEN);
-    draw_line_3d(vec3(0.0, 0.0, 0.0), vec3(0.0, 0.0, s * 0.3), BLUE);
+    
+    // Repères des axes à l'origine (0, 0, 0)
+    let axis_len = (size as f32 * 0.3).min(10.0);
+    draw_line_3d(vec3(0.0, 0.0, 0.0), vec3(axis_len, 0.0, 0.0), RED);
+    draw_line_3d(vec3(0.0, 0.0, 0.0), vec3(0.0, axis_len, 0.0), GREEN);
+    draw_line_3d(vec3(0.0, 0.0, 0.0), vec3(0.0, 0.0, axis_len), BLUE);
 }
 
 // ===========================================================================
@@ -1341,7 +1378,7 @@ async fn main() {
 
         set_camera(&camera);
 
-        render_grid(state.monde.size_x);
+        render_grid(&state.monde, state.monde.size_x);
         render_cells(&state);
 
         // --- Retour au 2D ---
