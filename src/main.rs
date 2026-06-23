@@ -340,6 +340,13 @@ struct AppState {
 
     // Replay
     replay: ReplaySystem,
+
+    // Pre-loading / Replay Cache
+    preloaded_states: Vec<MondeSED>,
+    preload_index: usize,
+    is_in_preload_mode: bool,
+    preload_cycles_count: i32,
+    preload_is_playing: bool,
 }
 
 #[derive(PartialEq, Clone, Copy)]
@@ -397,6 +404,12 @@ impl AppState {
             csv_filename: "metrics_log.csv".to_string(),
             csv_file: None,
             replay: ReplaySystem::default(),
+
+            preloaded_states: Vec::new(),
+            preload_index: 0,
+            is_in_preload_mode: false,
+            preload_cycles_count: 800,
+            preload_is_playing: false,
         }
     }
 
@@ -416,6 +429,11 @@ impl AppState {
         self.replay.playback_index = 0;
         self.replay.is_replaying = false;
         self.replay.is_recording = false;
+
+        self.preloaded_states.clear();
+        self.preload_index = 0;
+        self.is_in_preload_mode = false;
+        self.preload_is_playing = false;
     }
 
     fn record_param_change(&mut self, name: &str, value: f32) {
@@ -1242,6 +1260,55 @@ fn draw_gui(state: &mut AppState) {
                     }
                 });
 
+                // --- Pré-chargement (Replay Cache) ---
+                ui.collapsing("⚡ Pré-chargement (Replay Cache)", |ui| {
+                    if state.is_in_preload_mode {
+                        ui.label("🔴 Mode Replay Cache activé");
+                        ui.label(format!("Cycle courant : {} / {}", state.preload_index, if state.preloaded_states.is_empty() { 0 } else { state.preloaded_states.len() - 1 }));
+
+                        let mut idx = state.preload_index;
+                        let max_idx = if state.preloaded_states.is_empty() { 0 } else { state.preloaded_states.len() - 1 };
+                        if ui.add(egui::Slider::new(&mut idx, 0..=max_idx).text("Temps")).changed() {
+                            state.preload_index = idx;
+                            state.monde = state.preloaded_states[state.preload_index].clone();
+                        }
+
+                        ui.horizontal(|ui| {
+                            if ui.button(if state.preload_is_playing { "⏸ Pause" } else { "▶ Lire" }).clicked() {
+                                state.preload_is_playing = !state.preload_is_playing;
+                            }
+                            if ui.button("◀ Étape").clicked() {
+                                if state.preload_index > 0 {
+                                    state.preload_index -= 1;
+                                    state.monde = state.preloaded_states[state.preload_index].clone();
+                                }
+                            }
+                            if ui.button("Étape ▶").clicked() {
+                                if !state.preloaded_states.is_empty() && state.preload_index < state.preloaded_states.len() - 1 {
+                                    state.preload_index += 1;
+                                    state.monde = state.preloaded_states[state.preload_index].clone();
+                                }
+                            }
+                        });
+
+                        ui.separator();
+                        if ui.button("❌ Quitter le mode Replay").clicked() {
+                            state.is_in_preload_mode = false;
+                            state.preload_is_playing = false;
+                            if !state.preloaded_states.is_empty() {
+                                state.monde = state.preloaded_states[0].clone();
+                            }
+                            state.preloaded_states.clear();
+                        }
+                    } else {
+                        ui.label("Calculer et pré-charger N cycles :");
+                        ui.add(egui::Slider::new(&mut state.preload_cycles_count, 10..=2000).text("Cycles"));
+                        if ui.button("🚀 Lancer le pré-chargement").clicked() {
+                            lancer_prechargement(state);
+                        }
+                    }
+                });
+
                 ui.separator();
                 ui.label("SED v9.0 — Rust Edition");
                 ui.label("Déterminisme bit-exact garanti");
@@ -1260,6 +1327,30 @@ fn avancer_un_cycle(state: &mut AppState) {
     state.monde.avancer_temps();
     state.update_stats();
     handle_csv_logging(state);
+}
+
+fn lancer_prechargement(state: &mut AppState) {
+    if state.preload_cycles_count <= 0 { return; }
+
+    state.preloaded_states.clear();
+    
+    // Enregistrer l'état de départ initial
+    state.preloaded_states.push(state.monde.clone());
+
+    // Calculer les cycles suivants et les cloner
+    for _ in 0..state.preload_cycles_count {
+        // Avancement manuel du monde sans affecter les logs ou l'état global direct si non voulu,
+        // mais avancer_un_cycle est parfait car il met à jour le monde et les stats.
+        avancer_un_cycle(state);
+        state.preloaded_states.push(state.monde.clone());
+    }
+
+    state.preload_index = 0;
+    state.is_in_preload_mode = true;
+    state.is_running = false;
+    state.preload_is_playing = false;
+    
+    println!("[Preload] {} cycles pré-chargés en mémoire.", state.preload_cycles_count);
 }
 
 fn handle_camera_input(state: &mut AppState) {
@@ -1292,13 +1383,23 @@ fn handle_camera_input(state: &mut AppState) {
     }
 
     if is_key_pressed(KeyCode::Space) {
-        state.is_running = !state.is_running;
+        if state.is_in_preload_mode {
+            state.preload_is_playing = !state.preload_is_playing;
+        } else {
+            state.is_running = !state.is_running;
+        }
     }
     if is_key_pressed(KeyCode::Tab) {
         state.show_gui = !state.show_gui;
     }
     if is_key_pressed(KeyCode::Right) {
-        avancer_un_cycle(state);
+        if state.is_in_preload_mode {
+            if !state.preloaded_states.is_empty() {
+                state.preload_index = (state.preload_index + 1).min(state.preloaded_states.len() - 1);
+            }
+        } else {
+            avancer_un_cycle(state);
+        }
     }
 }
 
@@ -1357,7 +1458,25 @@ async fn main() {
 
         handle_camera_input(&mut state);
 
-        if state.is_running {
+        if state.is_in_preload_mode {
+            if state.preload_is_playing {
+                state.accum += get_frame_time();
+                let interval = 1.0 / state.speed;
+                while state.accum >= interval {
+                    if !state.preloaded_states.is_empty() {
+                        let next_idx = state.preload_index + 1;
+                        if next_idx < state.preloaded_states.len() {
+                            state.preload_index = next_idx;
+                            state.monde = state.preloaded_states[state.preload_index].clone();
+                        } else {
+                            state.preload_index = 0;
+                            state.monde = state.preloaded_states[0].clone();
+                        }
+                    }
+                    state.accum -= interval;
+                }
+            }
+        } else if state.is_running {
             state.accum += get_frame_time();
             let interval = 1.0 / state.speed;
             while state.accum >= interval {
