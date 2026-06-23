@@ -6,6 +6,15 @@ import json
 import time
 import random
 import sys
+import os
+
+# ===========================================================================
+# Fix Windows console encoding for Unicode (emojis)
+# ===========================================================================
+if sys.platform == "win32":
+    os.system("")  # Enable ANSI/VT100 escape sequences
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 # ===========================================================================
 # Configuration et Utilitaires API
@@ -14,11 +23,15 @@ import sys
 SIMULATOR_URL = "http://127.0.0.1:8080/"
 OLLAMA_URL = "http://127.0.0.1:11434/api/generate"
 
-def send_command(cmd, payload=None):
+def send_command(cmd, payload=None, timeout=None):
     """Envoie une commande JSON-RPC HTTP au simulateur SED Rust."""
     data = {"cmd": cmd}
     if payload:
         data.update(payload)
+    
+    # Timeout adaptatif : les commandes de simulation longues ont besoin de plus
+    if timeout is None:
+        timeout = 120 if cmd == "step" else 10
     
     req = urllib.request.Request(
         SIMULATOR_URL,
@@ -26,7 +39,7 @@ def send_command(cmd, payload=None):
         headers={"Content-Type": "application/json"}
     )
     try:
-        with urllib.request.urlopen(req, timeout=5) as response:
+        with urllib.request.urlopen(req, timeout=timeout) as response:
             return json.loads(response.read().decode("utf-8"))
     except Exception as e:
         print(f"[Erreur API Simulateur] Impossible de se connecter au simulateur ({e}). Assurez-vous que le simulateur tourne sur 127.0.0.1:8080.")
@@ -124,9 +137,13 @@ def main():
     else:
         print("[Vérification IA] ⚠️ Ollama non détecté ou configuré. Utilisation du moteur d'auto-tuning heuristique.")
         
-    # 3. Demander la recherche utilisateur
+    # 3. Demander la recherche utilisateur (CLI args ou input interactif)
     print("-" * 70)
-    user_query = input("Que souhaitez-vous chercher ? (ex: 'un rampeur rapide', 'une colonie stable') : ")
+    if len(sys.argv) > 1:
+        user_query = " ".join(sys.argv[1:])
+        print(f"[Mode CLI] Recherche pour : '{user_query}'")
+    else:
+        user_query = input("Que souhaitez-vous chercher ? (ex: 'un rampeur rapide', 'une colonie stable') : ")
     if not user_query.strip():
         user_query = "un organisme multicellulaire stable"
     print(f"[Cible] Lancement de la recherche sémantique pour : '{user_query}'")
@@ -146,9 +163,10 @@ def main():
         # Appliquer les paramètres
         send_command("set_params", {"params": current_params})
         
-        # Simuler 200 cycles accélérés
-        print(f"   ⌛ Simulation de 200 cycles en cours...")
-        sim_res = send_command("step", {"cycles": 200})
+        # Simuler 50 cycles accélérés (réduit pour un retour rapide)
+        num_cycles = 50
+        print(f"   ⌛ Simulation de {num_cycles} cycles en cours...")
+        sim_res = send_command("step", {"cycles": num_cycles})
         if not sim_res:
             break
             
@@ -234,6 +252,9 @@ def main():
     print("\n" + "=" * 70)
     print("🎉 EXPLORATION TERMINÉE !")
     print("=" * 70)
+    if not history:
+        print("Aucun résultat enregistré. Vérifiez la connexion au simulateur.")
+        return
     best_run = max(history, key=lambda h: h["cells_alive"] * (len(h["entities"]) + 1))
     print(f"Meilleur résultat trouvé au Run #{best_run['run']} :")
     print(f" - Seed : {best_run['seed']}")
