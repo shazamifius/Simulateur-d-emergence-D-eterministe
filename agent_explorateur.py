@@ -337,8 +337,8 @@ def main():
     # 2. Vérifier Ollama
     print("[Vérification IA] Recherche d'Ollama local sur le port 11434...")
     ollama_active = False
-    test_llm = query_ollama("Respond with json: {'ok': true}")
-    if test_llm and test_llm.get("ok"):
+    test_llm = None
+    if False:
         print("[Vérification IA] ✅ Ollama local est actif !")
         ollama_active = True
     else:
