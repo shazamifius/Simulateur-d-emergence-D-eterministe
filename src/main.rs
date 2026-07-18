@@ -339,6 +339,23 @@ struct ReplayCell {
     pub sc: f32,
 }
 
+#[derive(Clone, Debug)]
+struct CachedCell {
+    pub x: i32,
+    pub y: i32,
+    pub z: i32,
+    pub t: CellType,
+    pub e: f32,
+    pub c: f32,
+    pub g: f32,
+    pub p: f32,
+    pub h: u32,
+    pub a: i32,
+    pub r: f32,
+    pub sc: f32,
+    pub is_occluded: bool,
+}
+
 struct AppState {
     monde: MondeSED,
     is_running: bool,
@@ -365,6 +382,7 @@ struct AppState {
     show_soma: bool,
     show_neurone: bool,
     show_static: bool,
+    show_wires: bool,
     cell_scale: f32,
 
     // Édition et Pinceau
@@ -403,6 +421,7 @@ struct AppState {
     // Performance & Vitesse adaptative
     cycle_durations: Vec<f32>,
     adaptive_speed: bool,
+    alive_cells_cache: Vec<CachedCell>,
 }
 
 #[derive(PartialEq, Clone, Copy)]
@@ -415,6 +434,58 @@ enum RenderMode {
 }
 
 impl AppState {
+    fn update_alive_cells_cache(&mut self) {
+        self.alive_cells_cache.clear();
+
+        for chunk in self.monde.world_map.chunks.values() {
+            if !chunk.has_alive_cells {
+                continue;
+            }
+            for lx in 0..CHUNK_SIZE {
+                for ly in 0..CHUNK_SIZE {
+                    for lz in 0..CHUNK_SIZE {
+                        let cell = chunk.get_cell(lx, ly, lz);
+                        if cell.is_alive {
+                            let wx_i = chunk.cx * CHUNK_SIZE as i32 + lx as i32;
+                            let wy_i = chunk.cy * CHUNK_SIZE as i32 + ly as i32;
+                            let wz_i = chunk.cz * CHUNK_SIZE as i32 + lz as i32;
+
+                            let n_up = self.monde.world_map.get_cell_global(wx_i, wy_i + 1, wz_i);
+                            let n_down = self.monde.world_map.get_cell_global(wx_i, wy_i - 1, wz_i);
+                            let n_left = self.monde.world_map.get_cell_global(wx_i - 1, wy_i, wz_i);
+                            let n_right = self.monde.world_map.get_cell_global(wx_i + 1, wy_i, wz_i);
+                            let n_front = self.monde.world_map.get_cell_global(wx_i, wy_i, wz_i + 1);
+                            let n_back = self.monde.world_map.get_cell_global(wx_i, wy_i, wz_i - 1);
+
+                            let is_occluded = n_up.map_or(false, |c| c.is_alive)
+                                && n_down.map_or(false, |c| c.is_alive)
+                                && n_left.map_or(false, |c| c.is_alive)
+                                && n_right.map_or(false, |c| c.is_alive)
+                                && n_front.map_or(false, |c| c.is_alive)
+                                && n_back.map_or(false, |c| c.is_alive);
+
+                            self.alive_cells_cache.push(CachedCell {
+                                x: wx_i,
+                                y: wy_i,
+                                z: wz_i,
+                                t: cell.t,
+                                e: cell.e,
+                                c: cell.c,
+                                g: cell.g,
+                                p: cell.p,
+                                h: cell.h,
+                                a: cell.a,
+                                r: cell.r,
+                                sc: cell.sc,
+                                is_occluded,
+                            });
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     fn new() -> Self {
         let size = 24;
         let seed = 42;
@@ -448,7 +519,7 @@ impl AppState {
             }
         };
 
-        Self {
+        let mut state = Self {
             monde,
             is_running: false,
             speed: 2.0,
@@ -472,6 +543,7 @@ impl AppState {
             show_soma: true,
             show_neurone: true,
             show_static: false,
+            show_wires: false, // Contours désactivés par défaut pour maximiser les FPS
             cell_scale: 0.4,
 
             brush_mode: 0,
@@ -500,7 +572,10 @@ impl AppState {
 
             cycle_durations: Vec::new(),
             adaptive_speed: true,
-        }
+            alive_cells_cache: Vec::new(),
+        };
+        state.update_alive_cells_cache();
+        state
     }
 
     fn reset(&mut self) {
@@ -531,6 +606,7 @@ impl AppState {
 
         self.snapshots_list = list_snapshots();
         self.cycle_durations.clear();
+        self.update_alive_cells_cache();
     }
 
     fn record_param_change(&mut self, name: &str, value: f32) {
@@ -641,6 +717,7 @@ fn apply_brush_action(state: &mut AppState, coords: (i32, i32, i32)) {
             val4: state.brush_mode as f32,
         });
     }
+    state.update_alive_cells_cache();
 }
 
 fn handle_interaction(state: &mut AppState, camera: &Camera3D) {
@@ -845,11 +922,13 @@ fn render_cells(state: &AppState) {
                         let wz = (cz * CHUNK_SIZE as i32 + lz as i32) as f32;
                         let col = Color::new(0.4, 0.4, 0.4, 0.4);
                         draw_cube(vec3(wx, 0.0, wz), vec3(scale, scale, scale), None, col);
-                        draw_cube_wires(
-                            vec3(wx, 0.0, wz),
-                            vec3(scale, scale, scale),
-                            Color::new(col.r * 0.6, col.g * 0.6, col.b * 0.6, 0.4),
-                        );
+                        if state.show_wires {
+                            draw_cube_wires(
+                                vec3(wx, 0.0, wz),
+                                vec3(scale, scale, scale),
+                                Color::new(col.r * 0.6, col.g * 0.6, col.b * 0.6, 0.4),
+                            );
+                        }
                     }
                 }
             }
@@ -882,11 +961,13 @@ fn render_cells(state: &AppState) {
             let pos = vec3(rc.x as f32, rc.y as f32, rc.z as f32);
 
             draw_cube(pos, vec3(scale, scale, scale), None, col);
-            draw_cube_wires(
-                pos,
-                vec3(scale, scale, scale),
-                Color::new(col.r * 0.6, col.g * 0.6, col.b * 0.6, 0.4),
-            );
+            if state.show_wires {
+                draw_cube_wires(
+                    pos,
+                    vec3(scale, scale, scale),
+                    Color::new(col.r * 0.6, col.g * 0.6, col.b * 0.6, 0.4),
+                );
+            }
         }
 
         if let Some((x, y, z)) = state.selected_cell {
@@ -899,76 +980,54 @@ fn render_cells(state: &AppState) {
         return;
     }
 
-    for chunk in state.monde.world_map.chunks.values() {
-        if !chunk.has_alive_cells {
+    // Rendu en mode Normal via le cache de cellules vivantes
+    for rc in &state.alive_cells_cache {
+        if rc.is_occluded {
             continue;
         }
 
-        for lx in 0..CHUNK_SIZE {
-            for ly in 0..CHUNK_SIZE {
-                for lz in 0..CHUNK_SIZE {
-                    let cell = chunk.get_cell(lx, ly, lz);
-                    if !cell.is_alive {
-                        continue;
-                    }
+        match rc.t {
+            CellType::Souche if !state.show_souche => continue,
+            CellType::Soma if !state.show_soma => continue,
+            CellType::Neurone if !state.show_neurone => continue,
+            CellType::Static if !state.show_static => continue,
+            _ => {}
+        }
 
-                    match cell.t {
-                        CellType::Souche if !state.show_souche => continue,
-                        CellType::Soma if !state.show_soma => continue,
-                        CellType::Neurone if !state.show_neurone => continue,
-                        CellType::Static if !state.show_static => continue,
-                        _ => {}
-                    }
+        let cell_temp = rust_sed::simulation::cell::Cell {
+            is_alive: true,
+            t: rc.t,
+            e: rc.e,
+            c: rc.c,
+            g: rc.g,
+            p: rc.p,
+            h: rc.h,
+            a: rc.a,
+            r: rc.r,
+            sc: rc.sc,
+            ..rust_sed::simulation::cell::Cell::default()
+        };
 
-                    let wx_i = chunk.cx * CHUNK_SIZE as i32 + lx as i32;
-                    let wy_i = chunk.cy * CHUNK_SIZE as i32 + ly as i32;
-                    let wz_i = chunk.cz * CHUNK_SIZE as i32 + lz as i32;
+        let col = color_for_cell(&cell_temp, state.render_mode);
+        let pos = vec3(rc.x as f32, rc.y as f32, rc.z as f32);
 
-                    // Occlusion Check : évite de dessiner les cellules complètement entourées
-                    let n_up = state.monde.world_map.get_cell_global(wx_i, wy_i + 1, wz_i);
-                    let n_down = state.monde.world_map.get_cell_global(wx_i, wy_i - 1, wz_i);
-                    let n_left = state.monde.world_map.get_cell_global(wx_i - 1, wy_i, wz_i);
-                    let n_right = state.monde.world_map.get_cell_global(wx_i + 1, wy_i, wz_i);
-                    let n_front = state.monde.world_map.get_cell_global(wx_i, wy_i, wz_i + 1);
-                    let n_back = state.monde.world_map.get_cell_global(wx_i, wy_i, wz_i - 1);
-
-                    let is_occluded = n_up.map_or(false, |c| c.is_alive)
-                        && n_down.map_or(false, |c| c.is_alive)
-                        && n_left.map_or(false, |c| c.is_alive)
-                        && n_right.map_or(false, |c| c.is_alive)
-                        && n_front.map_or(false, |c| c.is_alive)
-                        && n_back.map_or(false, |c| c.is_alive);
-
-                    if is_occluded {
-                        continue;
-                    }
-
-                    let wx = wx_i as f32;
-                    let wy = wy_i as f32;
-                    let wz = wz_i as f32;
-
-                    let col = color_for_cell(cell, state.render_mode);
-
-                    draw_cube(vec3(wx, wy, wz), vec3(scale, scale, scale), None, col);
-                    draw_cube_wires(
-                        vec3(wx, wy, wz),
-                        vec3(scale, scale, scale),
-                        Color::new(col.r * 0.6, col.g * 0.6, col.b * 0.6, 0.4),
-                    );
-                }
-            }
+        draw_cube(pos, vec3(scale, scale, scale), None, col);
+        if state.show_wires {
+            draw_cube_wires(
+                pos,
+                vec3(scale, scale, scale),
+                Color::new(col.r * 0.6, col.g * 0.6, col.b * 0.6, 0.4),
+            );
         }
     }
 
     // Rendu dynamique du plancher de bedrock implicite à Y=0 sous les colonnes actives
     if state.show_static {
         let mut active_cols = std::collections::HashSet::new();
-        for key in state.monde.world_map.chunks.keys() {
-            if let Some(chunk) = state.monde.world_map.chunks.get(key)
-                && chunk.has_alive_cells
-            {
-                active_cols.insert((key.x, key.z));
-            }
+        for rc in &state.alive_cells_cache {
+            let cx = rc.x.div_euclid(CHUNK_SIZE as i32);
+            let cz = rc.z.div_euclid(CHUNK_SIZE as i32);
+            active_cols.insert((cx, cz));
         }
         for (cx, cz) in active_cols {
             for lx in 0..CHUNK_SIZE {
@@ -977,11 +1036,13 @@ fn render_cells(state: &AppState) {
                     let wz = (cz * CHUNK_SIZE as i32 + lz as i32) as f32;
                     let col = Color::new(0.4, 0.4, 0.4, 0.4);
                     draw_cube(vec3(wx, 0.0, wz), vec3(scale, scale, scale), None, col);
-                    draw_cube_wires(
-                        vec3(wx, 0.0, wz),
-                        vec3(scale, scale, scale),
-                        Color::new(col.r * 0.6, col.g * 0.6, col.b * 0.6, 0.4),
-                    );
+                    if state.show_wires {
+                        draw_cube_wires(
+                            vec3(wx, 0.0, wz),
+                            vec3(scale, scale, scale),
+                            Color::new(col.r * 0.6, col.g * 0.6, col.b * 0.6, 0.4),
+                        );
+                    }
                 }
             }
         }
@@ -1389,6 +1450,7 @@ fn draw_gui(state: &mut AppState) {
                             } else {
                                 println!("[Snapshot] Chargé: {}", state.selected_snapshot);
                                 state.update_stats();
+                                state.update_alive_cells_cache();
                             }
                         }
                     }
@@ -1528,6 +1590,7 @@ fn draw_gui(state: &mut AppState) {
                     ui.checkbox(&mut state.show_soma, "🟠 Soma");
                     ui.checkbox(&mut state.show_neurone, "🔵 Neurone");
                     ui.checkbox(&mut state.show_static, "⬜ Static (bedrock)");
+                    ui.checkbox(&mut state.show_wires, "🔳 Contours fil de fer (filtres)");
 
                     ui.separator();
                     ui.add(
@@ -1958,6 +2021,7 @@ fn handle_api_command(state: &mut AppState, cmd: serde_json::Value) -> serde_jso
             match load_snapshot(&mut state.monde, &full_path) {
                 Ok(_) => {
                     state.update_stats();
+                    state.update_alive_cells_cache();
                     serde_json::json!({
                         "status": "success",
                         "message": format!("Snapshot loaded successfully from {}", full_path),
@@ -1987,6 +2051,7 @@ fn avancer_un_cycle(state: &mut AppState) {
     state.monde.avancer_temps();
     state.update_stats();
     handle_csv_logging(state);
+    state.update_alive_cells_cache();
 }
 
 fn lancer_prechargement(state: &mut AppState) {

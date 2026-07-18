@@ -397,27 +397,27 @@ def main():
         # Appliquer les paramètres
         send_command("set_params", {"params": current_params})
         
-        # --- Phase 1 : Simulation initiale (25 cycles) ---
-        print(f"   ⌛ Phase 1 : 25 premiers cycles...")
-        sim_res = send_command("step", {"cycles": 25})
+        # --- Phase 1 : Simulation initiale (5000 cycles) ---
+        print(f"   ⌛ Phase 1 : 5000 premiers cycles...")
+        sim_res = send_command("step", {"cycles": 5000})
         if not sim_res:
             print("   ⚠️ Simulation échouée, passage au run suivant...")
             continue
         
-        # Snapshot des entités au cycle 25
+        # Snapshot des entités au cycle 5000
         ent_res_t1 = send_command("get_entities")
         entities_t1 = ent_res_t1.get("entities", []) if ent_res_t1 else []
         
-        # --- Phase 2 : Simulation suite (25 cycles de plus) ---
-        print(f"   ⌛ Phase 2 : 25 cycles supplémentaires (tracking mouvement)...")
-        sim_res = send_command("step", {"cycles": 25})
+        # --- Phase 2 : Simulation suite (100 cycles de plus) ---
+        print(f"   ⌛ Phase 2 : 100 cycles supplémentaires (tracking mouvement)...")
+        sim_res = send_command("step", {"cycles": 100})
         if not sim_res:
             continue
             
         cells_alive = sim_res.get("cells_alive", 0)
         current_cycle = sim_res.get("current_cycle", 0)
         
-        # Snapshot des entités au cycle 50
+        # Snapshot des entités au cycle 5100
         ent_res_t2 = send_command("get_entities")
         entities_t2 = ent_res_t2.get("entities", []) if ent_res_t2 else []
         
@@ -523,7 +523,7 @@ def main():
     print(f"\n💾 [Sauvegarde] Recréation et sauvegarde du meilleur spécimen...")
     send_command("reset", {"seed": best_run["seed"], "size": 24, "density": 0.12})
     send_command("set_params", {"params": best_run["params"]})
-    send_command("step", {"cycles": 50})
+    send_command("step", {"cycles": 5100})
 
     filename = f"meilleur_specimen_run_{best_run['run']}_score_{best_run['score']}.sed"
     res_save = send_command("save_snapshot", {"path": filename})
