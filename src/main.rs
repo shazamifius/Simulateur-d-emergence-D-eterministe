@@ -374,6 +374,8 @@ struct AppState {
     is_in_preload_mode: bool,
     preload_cycles_count: i32,
     preload_is_playing: bool,
+    is_currently_preloading: bool,
+    preload_current_step: i32,
 
     // Snapshots & API
     snapshots_list: Vec<String>,
@@ -470,6 +472,8 @@ impl AppState {
             is_in_preload_mode: false,
             preload_cycles_count: 800,
             preload_is_playing: false,
+            is_currently_preloading: false,
+            preload_current_step: 0,
 
             snapshots_list: snapshots,
             selected_snapshot: selected_snap,
@@ -503,6 +507,8 @@ impl AppState {
         self.preload_index = 0;
         self.is_in_preload_mode = false;
         self.preload_is_playing = false;
+        self.is_currently_preloading = false;
+        self.preload_current_step = 0;
 
         self.snapshots_list = list_snapshots();
         self.cycle_durations.clear();
@@ -1604,6 +1610,19 @@ fn draw_gui(state: &mut AppState) {
                             }
                             state.preloaded_states.clear();
                         }
+                    } else if state.is_currently_preloading {
+                        let pct = if state.preload_cycles_count > 0 {
+                            state.preload_current_step as f32 / state.preload_cycles_count as f32
+                        } else {
+                            0.0
+                        };
+                        ui.label("Pré-chargement en cours...");
+                        ui.add(egui::ProgressBar::new(pct).text(format!(
+                            "{}/{} cycles ({:.1}%)",
+                            state.preload_current_step,
+                            state.preload_cycles_count,
+                            pct * 100.0
+                        )));
                     } else {
                         ui.label("Calculer et pré-charger N cycles :");
                         ui.add(
@@ -1869,23 +1888,10 @@ fn lancer_prechargement(state: &mut AppState) {
     // Enregistrer l'état de départ initial
     state.preloaded_states.push(state.monde.clone());
 
-    // Calculer les cycles suivants et les cloner
-    for _ in 0..state.preload_cycles_count {
-        // Avancement manuel du monde sans affecter les logs ou l'état global direct si non voulu,
-        // mais avancer_un_cycle est parfait car il met à jour le monde et les stats.
-        avancer_un_cycle(state);
-        state.preloaded_states.push(state.monde.clone());
-    }
-
-    state.preload_index = 0;
-    state.is_in_preload_mode = true;
+    state.is_currently_preloading = true;
+    state.preload_current_step = 0;
     state.is_running = false;
     state.preload_is_playing = false;
-
-    println!(
-        "[Preload] {} cycles pré-chargés en mémoire.",
-        state.preload_cycles_count
-    );
 }
 
 fn handle_camera_input(state: &mut AppState) {
@@ -2114,7 +2120,27 @@ async fn main() {
 
         handle_camera_input(&mut state);
 
-        if state.is_in_preload_mode {
+        if state.is_currently_preloading {
+            let batch_size = 20;
+            for _ in 0..batch_size {
+                if state.preload_current_step < state.preload_cycles_count {
+                    avancer_un_cycle(&mut state);
+                    state.preloaded_states.push(state.monde.clone());
+                    state.preload_current_step += 1;
+                } else {
+                    state.is_currently_preloading = false;
+                    state.preload_index = 0;
+                    state.is_in_preload_mode = true;
+                    state.is_running = false;
+                    state.preload_is_playing = false;
+                    println!(
+                        "[Preload] {} cycles pré-chargés en mémoire.",
+                        state.preload_cycles_count
+                    );
+                    break;
+                }
+            }
+        } else if state.is_in_preload_mode {
             if state.preload_is_playing {
                 state.accum += get_frame_time();
                 let interval = 1.0 / state.speed;
