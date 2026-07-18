@@ -622,9 +622,12 @@ impl MondeSED {
                                 }
                             }
 
-                            let source_index =
-                                (wx as usize ^ (wy as usize * 33) ^ (wz as usize * 1024))
-                                    + index_counter;
+                            let source_index = (wx as i64)
+                                .wrapping_mul(33)
+                                .wrapping_add(wy as i64)
+                                .wrapping_mul(1024)
+                                .wrapping_add(wz as i64)
+                                .wrapping_add(index_counter as i64) as usize;
                             index_counter += 1;
                             if let Some(mvt) = evaluer_mouvements(
                                 wx,
