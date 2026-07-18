@@ -1,8 +1,8 @@
 use super::cell::{Cell, CellType};
 use super::params::ParametresGlobaux;
 use super::world::{
+    DivisionSouhaitee, EchangeEnergieSouhaite, EchangePsychiqueSouhaite, MouvementSouhaite,
     WorldMap,
-    MouvementSouhaite, DivisionSouhaitee, EchangeEnergieSouhaite, EchangePsychiqueSouhaite
 };
 
 // --- Calculs de Champs et d'Adhésion ---
@@ -28,20 +28,22 @@ pub fn calculer_champs_locaux(
     for dz in -r_diff..=r_diff {
         for dy in -r_diff..=r_diff {
             for dx in -r_diff..=r_diff {
-                if dx == 0 && dy == 0 && dz == 0 { continue; }
+                if dx == 0 && dy == 0 && dz == 0 {
+                    continue;
+                }
                 let nx = pos_v.0 + dx;
                 let ny = pos_v.1 + dy;
                 let nz = pos_v.2 + dz;
 
                 let dist = euclidean_distance(pos_v, (nx, ny, nz));
-                if dist <= params.rayon_diffusion {
-                    if let Some(cell) = read_map.get_cell_global(nx, ny, nz) {
-                        if cell.is_alive && cell.t != CellType::Static {
-                            let att = (-params.alpha_attenuation * dist).exp();
-                            sum_e += cell.e * att;
-                            sum_c += cell.c * att;
-                        }
-                    }
+                if dist <= params.rayon_diffusion
+                    && let Some(cell) = read_map.get_cell_global(nx, ny, nz)
+                    && cell.is_alive
+                    && cell.t != CellType::Static
+                {
+                    let att = (-params.alpha_attenuation * dist).exp();
+                    sum_e += cell.e * att;
+                    sum_c += cell.c * att;
                 }
             }
         }
@@ -49,23 +51,22 @@ pub fn calculer_champs_locaux(
     (sum_e, sum_c)
 }
 
-pub fn calculer_adhesion(
-    pos_v: (i32, i32, i32),
-    cell_type: CellType,
-    read_map: &WorldMap,
-) -> f32 {
+pub fn calculer_adhesion(pos_v: (i32, i32, i32), cell_type: CellType, read_map: &WorldMap) -> f32 {
     let mut count = 0;
     for dz in -1..=1 {
         for dy in -1..=1 {
             for dx in -1..=1 {
-                if dx == 0 && dy == 0 && dz == 0 { continue; }
+                if dx == 0 && dy == 0 && dz == 0 {
+                    continue;
+                }
                 let nx = pos_v.0 + dx;
                 let ny = pos_v.1 + dy;
                 let nz = pos_v.2 + dz;
-                if let Some(cell) = read_map.get_cell_global(nx, ny, nz) {
-                    if cell.is_alive && cell.t == cell_type {
-                        count += 1;
-                    }
+                if let Some(cell) = read_map.get_cell_global(nx, ny, nz)
+                    && cell.is_alive
+                    && cell.t == cell_type
+                {
+                    count += 1;
                 }
             }
         }
@@ -75,12 +76,10 @@ pub fn calculer_adhesion(
 
 // --- Métabolisme ---
 
-pub fn appliquer_loi_metabolisme(
-    cell: &mut Cell,
-    wy: i32,
-    params: &ParametresGlobaux,
-) {
-    if !cell.is_alive || cell.t == CellType::Static { return; }
+pub fn appliquer_loi_metabolisme(cell: &mut Cell, wy: i32, params: &ParametresGlobaux) {
+    if !cell.is_alive || cell.t == CellType::Static {
+        return;
+    }
 
     // Dette et Ennui augmentent
     cell.d += params.d_per_tick;
@@ -105,13 +104,17 @@ pub fn appliquer_loi_metabolisme(
 // --- Mouvement ---
 
 pub fn evaluer_mouvements(
-    wx: i32, wy: i32, wz: i32,
+    wx: i32,
+    wy: i32,
+    wz: i32,
     cell: &Cell,
     read_map: &WorldMap,
     params: &ParametresGlobaux,
     index_source: usize,
 ) -> Option<MouvementSouhaite> {
-    if !cell.is_alive || cell.t == CellType::Static { return None; }
+    if !cell.is_alive || cell.t == CellType::Static {
+        return None;
+    }
 
     let mut best_target = None;
     let mut max_score = f32::NEG_INFINITY;
@@ -124,13 +127,17 @@ pub fn evaluer_mouvements(
     for dz in -1..=1 {
         for dy in -1..=1 {
             for dx in -1..=1 {
-                if dx == 0 && dy == 0 && dz == 0 { continue; }
+                if dx == 0 && dy == 0 && dz == 0 {
+                    continue;
+                }
                 let nx = wx + dx;
                 let ny = wy + dy;
                 let nz = wz + dz;
 
                 // On ne sort pas des limites logiques de hauteur (bedrock à y=0)
-                if ny <= 0 { continue; }
+                if ny <= 0 {
+                    continue;
+                }
 
                 // None = pas de chunk = espace vide libre
                 let is_empty = match read_map.get_cell_global(nx, ny, nz) {
@@ -145,7 +152,8 @@ pub fn evaluer_mouvements(
                     let adhesion = calculer_adhesion((nx, ny, nz), cell.t, read_map);
                     let bonus_adh = params.k_adh * adhesion;
 
-                    let score = gravity - pressure + inertia + bonus_champ + bonus_adh - params.cout_mouvement;
+                    let score = gravity - pressure + inertia + bonus_champ + bonus_adh
+                        - params.cout_mouvement;
                     if score > max_score {
                         max_score = score;
                         best_target = Some((nx, ny, nz));
@@ -166,7 +174,9 @@ pub fn evaluer_mouvements(
 // --- Division ---
 
 pub fn evaluer_division(
-    wx: i32, wy: i32, wz: i32,
+    wx: i32,
+    wy: i32,
+    wz: i32,
     cell: &Cell,
     read_map: &WorldMap,
     params: &ParametresGlobaux,
@@ -179,11 +189,15 @@ pub fn evaluer_division(
     for dz in -1..=1 {
         for dy in -1..=1 {
             for dx in -1..=1 {
-                if dx == 0 && dy == 0 && dz == 0 { continue; }
+                if dx == 0 && dy == 0 && dz == 0 {
+                    continue;
+                }
                 let nx = wx + dx;
                 let ny = wy + dy;
                 let nz = wz + dz;
-                if ny <= 0 { continue; }
+                if ny <= 0 {
+                    continue;
+                }
 
                 // None = pas de chunk = espace vide libre
                 let is_empty = match read_map.get_cell_global(nx, ny, nz) {
@@ -207,41 +221,48 @@ pub fn evaluer_division(
 // --- Osmose (Échange d'énergie) ---
 
 pub fn evaluer_osmose(
-    wx: i32, wy: i32, wz: i32,
+    wx: i32,
+    wy: i32,
+    wz: i32,
     cell: &Cell,
     read_map: &WorldMap,
     params: &ParametresGlobaux,
 ) -> Vec<EchangeEnergieSouhaite> {
     let mut echanges = Vec::new();
-    if !cell.is_alive || cell.t == CellType::Static { return echanges; }
+    if !cell.is_alive || cell.t == CellType::Static {
+        return echanges;
+    }
 
     let t_src = (wx, wy, wz);
 
     for dz in -1..=1 {
         for dy in -1..=1 {
             for dx in -1..=1 {
-                if dx == 0 && dy == 0 && dz == 0 { continue; }
+                if dx == 0 && dy == 0 && dz == 0 {
+                    continue;
+                }
                 let nx = wx + dx;
                 let ny = wy + dy;
                 let nz = wz + dz;
                 let t_tgt = (nx, ny, nz);
 
                 // Unicité des paires : on traite uniquement si ID(source) < ID(voisin)
-                if t_src < t_tgt {
-                    if let Some(target) = read_map.get_cell_global(nx, ny, nz) {
-                        if target.is_alive && target.t != CellType::Static {
-                            // Compatibilité génétique R
-                            if (cell.r - target.r).abs() < params.seuil_similarite_r {
-                                let delta = (cell.e - target.e) * params.facteur_echange_energie;
-                                let delta_safe = delta.clamp(-params.max_flux_energie, params.max_flux_energie);
-                                if delta_safe.abs() > 0.0001 {
-                                    echanges.push(EchangeEnergieSouhaite {
-                                        source: t_src,
-                                        destination: t_tgt,
-                                        montant_energie: delta_safe,
-                                    });
-                                }
-                            }
+                if t_src < t_tgt
+                    && let Some(target) = read_map.get_cell_global(nx, ny, nz)
+                    && target.is_alive
+                    && target.t != CellType::Static
+                {
+                    // Compatibilité génétique R
+                    if (cell.r - target.r).abs() < params.seuil_similarite_r {
+                        let delta = (cell.e - target.e) * params.facteur_echange_energie;
+                        let delta_safe =
+                            delta.clamp(-params.max_flux_energie, params.max_flux_energie);
+                        if delta_safe.abs() > 0.0001 {
+                            echanges.push(EchangeEnergieSouhaite {
+                                source: t_src,
+                                destination: t_tgt,
+                                montant_energie: delta_safe,
+                            });
                         }
                     }
                 }
@@ -254,31 +275,38 @@ pub fn evaluer_osmose(
 // --- Interaction Forte (Psychisme) ---
 
 pub fn evaluer_psychisme(
-    wx: i32, wy: i32, wz: i32,
+    wx: i32,
+    wy: i32,
+    wz: i32,
     cell: &Cell,
     read_map: &WorldMap,
 ) -> Vec<EchangePsychiqueSouhaite> {
     let mut echanges = Vec::new();
-    if !cell.is_alive || cell.t == CellType::Static { return echanges; }
+    if !cell.is_alive || cell.t == CellType::Static {
+        return echanges;
+    }
 
     for dz in -1..=1 {
         for dy in -1..=1 {
             for dx in -1..=1 {
-                if dx == 0 && dy == 0 && dz == 0 { continue; }
+                if dx == 0 && dy == 0 && dz == 0 {
+                    continue;
+                }
                 let nx = wx + dx;
                 let ny = wy + dy;
                 let nz = wz + dz;
-                if let Some(target) = read_map.get_cell_global(nx, ny, nz) {
-                    if target.is_alive && target.t != CellType::Static {
-                        let dc = 0.1 * target.c; // Friction sociale
-                        let dl = 0.1 * target.l; // Satisfaction sociale
-                        echanges.push(EchangePsychiqueSouhaite {
-                            source: (wx, wy, wz),
-                            destination: (nx, ny, nz),
-                            montant_c: dc,
-                            montant_l: dl,
-                        });
-                    }
+                if let Some(target) = read_map.get_cell_global(nx, ny, nz)
+                    && target.is_alive
+                    && target.t != CellType::Static
+                {
+                    let dc = 0.1 * target.c; // Friction sociale
+                    let dl = 0.1 * target.l; // Satisfaction sociale
+                    echanges.push(EchangePsychiqueSouhaite {
+                        source: (wx, wy, wz),
+                        destination: (nx, ny, nz),
+                        montant_c: dc,
+                        montant_l: dl,
+                    });
                 }
             }
         }
@@ -289,7 +317,8 @@ pub fn evaluer_psychisme(
 // --- Hachage Déterministe pour Mutation ---
 
 pub fn deterministic_mutation(x: i32, y: i32, z: i32, age: i32, seed: u32) -> f32 {
-    let hash = (x as u32).wrapping_mul(18397)
+    let hash = (x as u32)
+        .wrapping_mul(18397)
         .wrapping_add((y as u32).wrapping_mul(20441))
         .wrapping_add((z as u32).wrapping_mul(22543))
         .wrapping_add((age as u32).wrapping_mul(24671))

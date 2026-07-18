@@ -1,18 +1,14 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
+#[derive(Default)]
 pub enum CellType {
+    #[default]
     Souche = 0,
     Soma = 1,
     Neurone = 2,
     Static = 3,
-}
-
-impl Default for CellType {
-    fn default() -> Self {
-        CellType::Souche
-    }
 }
 
 #[derive(Serialize, Deserialize, Clone, Copy, Debug)]
@@ -33,12 +29,12 @@ pub struct Cell {
     pub a: i32, // Énergie accumulée / Âge (cycles)
 
     // --- Variables Neurales & Spatiales ---
-    pub p: f32,      // Potentiel électrique [-1,1]
-    pub r#ref: i32,  // Compteur réfractaire
-    pub e_cost: f32, // Coût énergétique accumulé (spikes)
+    pub p: f32,       // Potentiel électrique [-1,1]
+    pub r#ref: i32,   // Compteur réfractaire
+    pub e_cost: f32,  // Coût énergétique accumulé (spikes)
     pub w: [f32; 27], // Poids synaptiques (voisins)
-    pub h: u32,      // Historique des spikes (Bitfield 32 bits)
-    pub g: f32,      // Gradient spatial
+    pub h: u32,       // Historique des spikes (Bitfield 32 bits)
+    pub g: f32,       // Gradient spatial
 
     pub is_alive: bool,
 }
@@ -82,12 +78,20 @@ impl Cell {
         self.r = self.r.clamp(0.0, 1.0);
         self.sc = self.sc.clamp(0.0, 1.0);
         self.g = self.g.clamp(0.0, 1.0);
-        
+
         // E, D, L, M doivent rester positifs ou nuls
-        if self.e < 0.0 { self.e = 0.0; }
-        if self.d < 0.0 { self.d = 0.0; }
-        if self.l < 0.0 { self.l = 0.0; }
-        if self.m < 0.0 { self.m = 0.0; }
+        if self.e < 0.0 {
+            self.e = 0.0;
+        }
+        if self.d < 0.0 {
+            self.d = 0.0;
+        }
+        if self.l < 0.0 {
+            self.l = 0.0;
+        }
+        if self.m < 0.0 {
+            self.m = 0.0;
+        }
 
         for weight in self.w.iter_mut() {
             *weight = weight.clamp(0.0, 1.0);
@@ -95,10 +99,15 @@ impl Cell {
     }
 
     pub fn is_nan_or_inf(&self) -> bool {
-        self.e.is_nan() || self.e.is_infinite() ||
-        self.d.is_nan() || self.d.is_infinite() ||
-        self.c.is_nan() || self.c.is_infinite() ||
-        self.l.is_nan() || self.l.is_infinite() ||
-        self.p.is_nan() || self.p.is_infinite()
+        self.e.is_nan()
+            || self.e.is_infinite()
+            || self.d.is_nan()
+            || self.d.is_infinite()
+            || self.c.is_nan()
+            || self.c.is_infinite()
+            || self.l.is_nan()
+            || self.l.is_infinite()
+            || self.p.is_nan()
+            || self.p.is_infinite()
     }
 }

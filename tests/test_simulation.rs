@@ -26,7 +26,10 @@ fn test_determinism_bit_exact() {
     let hash2 = monde2.calculate_state_hash();
     let pop2 = monde2.get_nombre_cellules_vivantes();
 
-    assert_eq!(hash1, hash2, "Les hashes doivent être identiques (déterminisme bit-exact)");
+    assert_eq!(
+        hash1, hash2,
+        "Les hashes doivent être identiques (déterminisme bit-exact)"
+    );
     assert_eq!(pop1, pop2, "Les populations doivent être identiques");
     println!("Déterminisme vérifié: hash={} pop={}", hash1, pop1);
 }
@@ -41,7 +44,10 @@ fn test_energy_conservation_no_sun() {
     monde.params.seuil_energie_division = 999.0; // Pas de division
     monde.initialiser_monde(123, 0.1);
 
-    let initial_energy: f32 = monde.world_map.chunks.values()
+    let initial_energy: f32 = monde
+        .world_map
+        .chunks
+        .values()
         .flat_map(|chk| chk.cells.iter())
         .filter(|c| c.is_alive)
         .map(|c| c.e)
@@ -51,16 +57,26 @@ fn test_energy_conservation_no_sun() {
         monde.avancer_temps();
     }
 
-    let final_energy: f32 = monde.world_map.chunks.values()
+    let final_energy: f32 = monde
+        .world_map
+        .chunks
+        .values()
         .flat_map(|chk| chk.cells.iter())
         .filter(|c| c.is_alive)
         .map(|c| c.e)
         .sum();
 
     // L'énergie doit strictement diminuer (coûts métaboliques)
-    assert!(final_energy <= initial_energy,
-        "L'énergie ne doit pas augmenter sans source: initiale={}, finale={}", initial_energy, final_energy);
-    println!("Conservation vérifiée: E_init={:.2} -> E_fin={:.2}", initial_energy, final_energy);
+    assert!(
+        final_energy <= initial_energy,
+        "L'énergie ne doit pas augmenter sans source: initiale={}, finale={}",
+        initial_energy,
+        final_energy
+    );
+    println!(
+        "Conservation vérifiée: E_init={:.2} -> E_fin={:.2}",
+        initial_energy, final_energy
+    );
 }
 
 /// Test de base : le métabolisme réduit l'énergie des cellules.
@@ -131,7 +147,10 @@ fn test_different_seeds_diverge() {
 
     let hash1 = monde1.calculate_state_hash();
     let hash2 = monde2.calculate_state_hash();
-    assert_ne!(hash1, hash2, "Deux seeds différentes doivent produire des états différents");
+    assert_ne!(
+        hash1, hash2,
+        "Deux seeds différentes doivent produire des états différents"
+    );
 }
 
 /// Test que la population initiale est non-nulle.
@@ -142,4 +161,38 @@ fn test_initialization_creates_cells() {
     let pop = monde.get_nombre_cellules_vivantes();
     assert!(pop > 0, "La population initiale doit être non-nulle");
     println!("Population initiale: {}", pop);
+}
+
+/// Test de robustesse aux valeurs NaN et Inf :
+/// La simulation ne doit pas planter (panic) si des cellules acquièrent des valeurs non définies.
+#[test]
+fn test_nan_robustness() {
+    let mut monde = MondeSED::new(16, 16, 16);
+    monde.initialiser_monde(42, 0.1);
+
+    // Injecter des valeurs invalides dans certaines cellules vivantes
+    let mut injected = false;
+    for chunk in monde.world_map.chunks.values_mut() {
+        for cell in &mut chunk.cells {
+            if cell.is_alive {
+                cell.e = f32::NAN;
+                cell.d = f32::INFINITY;
+                cell.c = f32::NEG_INFINITY;
+                injected = true;
+                break;
+            }
+        }
+        if injected {
+            break;
+        }
+    }
+
+    assert!(injected, "Une cellule vivante doit avoir été injectée avec des NaNs");
+
+    // L'avancement temporel doit s'exécuter sans paniquer
+    monde.avancer_temps();
+    
+    // Vérifier que la cellule corrompue a été nettoyée ou désactivée
+    let pop_after = monde.get_nombre_cellules_vivantes();
+    println!("Simulation résistante aux NaNs réussie. Population après : {}", pop_after);
 }

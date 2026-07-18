@@ -1,5 +1,5 @@
 use super::cell::Cell;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 pub const CHUNK_SIZE: usize = 16;
 pub const CHUNK_VOLUME: usize = CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE;

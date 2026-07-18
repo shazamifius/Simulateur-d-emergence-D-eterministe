@@ -2,7 +2,7 @@ use macroquad::prelude::*;
 use rust_sed::simulation::cell::CellType;
 use rust_sed::simulation::chunk::CHUNK_SIZE;
 use rust_sed::simulation::world::MondeSED;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 // ===========================================================================
 // Configuration de la fenêtre macroquad
@@ -91,12 +91,11 @@ fn list_scenarios() -> Vec<String> {
     let _ = std::fs::create_dir_all("scenarios"); // ensure dir exists
     if let Ok(entries) = std::fs::read_dir("scenarios") {
         for entry in entries.flatten() {
-            if let Some(ext) = entry.path().extension() {
-                if ext == "json" {
-                    if let Some(name) = entry.path().file_name() {
-                        list.push(name.to_string_lossy().to_string());
-                    }
-                }
+            if let Some(ext) = entry.path().extension()
+                && ext == "json"
+                && let Some(name) = entry.path().file_name()
+            {
+                list.push(name.to_string_lossy().to_string());
             }
         }
     }
@@ -106,19 +105,20 @@ fn list_scenarios() -> Vec<String> {
 fn charger_scenario(monde: &mut MondeSED, path: &str) -> Result<(), Box<dyn std::error::Error>> {
     let content = std::fs::read_to_string(path)?;
     let scenario: ScenarioFile = serde_json::from_str(&content)?;
-    
+
     monde.world_map.clear();
     monde.read_map.clear();
     monde.cycle_actuel = 0;
-    
+
     // (Plancher de Bedrock implicite à Y=0 géré globalement)
-    
+
     // Placement
     for cell in scenario.cells {
-        let (cx, cy, cz, lx, ly, lz) = rust_sed::simulation::world::WorldMap::world_to_chunk_coords(cell.x, cell.y, cell.z);
+        let (cx, cy, cz, lx, ly, lz) =
+            rust_sed::simulation::world::WorldMap::world_to_chunk_coords(cell.x, cell.y, cell.z);
         let chunk = monde.world_map.get_or_create_chunk(cx, cy, cz);
         let c = chunk.get_cell_mut(lx, ly, lz);
-        
+
         c.is_alive = true;
         c.e = cell.energy;
         c.sc = cell.resistance.unwrap_or(0.5);
@@ -129,11 +129,11 @@ fn charger_scenario(monde: &mut MondeSED, path: &str) -> Result<(), Box<dyn std:
             _ => CellType::Souche,
         };
     }
-    
+
     for chunk in monde.world_map.chunks.values_mut() {
         chunk.update_active_flags();
     }
-    
+
     Ok(())
 }
 
@@ -244,19 +244,27 @@ fn get_mouse_ray(camera: &Camera3D) -> (Vec3, Vec3) {
     (ray_origin, ray_direction)
 }
 
-fn raycast_world(state: &AppState, ray_origin: Vec3, ray_dir: Vec3) -> Option<(i32, i32, i32, Vec3)> {
+fn raycast_world(
+    state: &AppState,
+    ray_origin: Vec3,
+    ray_dir: Vec3,
+) -> Option<(i32, i32, i32, Vec3)> {
     let mut min_t = f32::INFINITY;
     let mut best_hit = None;
     let scale = state.cell_scale;
 
     for chunk in state.monde.world_map.chunks.values() {
-        if !chunk.has_alive_cells { continue; }
+        if !chunk.has_alive_cells {
+            continue;
+        }
 
         for lx in 0..CHUNK_SIZE {
             for ly in 0..CHUNK_SIZE {
                 for lz in 0..CHUNK_SIZE {
                     let cell = chunk.get_cell(lx, ly, lz);
-                    if !cell.is_alive { continue; }
+                    if !cell.is_alive {
+                        continue;
+                    }
 
                     match cell.t {
                         CellType::Souche if !state.show_souche => continue,
@@ -270,19 +278,20 @@ fn raycast_world(state: &AppState, ray_origin: Vec3, ray_dir: Vec3) -> Option<(i
                     let wy = (chunk.cy * CHUNK_SIZE as i32 + ly as i32) as f32;
                     let wz = (chunk.cz * CHUNK_SIZE as i32 + lz as i32) as f32;
 
-                    let aabb_min = vec3(wx - scale/2.0, wy - scale/2.0, wz - scale/2.0);
-                    let aabb_max = vec3(wx + scale/2.0, wy + scale/2.0, wz + scale/2.0);
+                    let aabb_min = vec3(wx - scale / 2.0, wy - scale / 2.0, wz - scale / 2.0);
+                    let aabb_max = vec3(wx + scale / 2.0, wy + scale / 2.0, wz + scale / 2.0);
 
-                    if let Some((t, normal)) = ray_aabb_intersection(ray_origin, ray_dir, aabb_min, aabb_max) {
-                        if t < min_t {
-                            min_t = t;
-                            best_hit = Some((
-                                chunk.cx * CHUNK_SIZE as i32 + lx as i32,
-                                chunk.cy * CHUNK_SIZE as i32 + ly as i32,
-                                chunk.cz * CHUNK_SIZE as i32 + lz as i32,
-                                normal
-                            ));
-                        }
+                    if let Some((t, normal)) =
+                        ray_aabb_intersection(ray_origin, ray_dir, aabb_min, aabb_max)
+                        && t < min_t
+                    {
+                        min_t = t;
+                        best_hit = Some((
+                            chunk.cx * CHUNK_SIZE as i32 + lx as i32,
+                            chunk.cy * CHUNK_SIZE as i32 + ly as i32,
+                            chunk.cz * CHUNK_SIZE as i32 + lz as i32,
+                            normal,
+                        ));
                     }
                 }
             }
@@ -299,12 +308,12 @@ fn raycast_world(state: &AppState, ray_origin: Vec3, ray_dir: Vec3) -> Option<(i
 struct AppState {
     monde: MondeSED,
     is_running: bool,
-    speed: f32,            // Cycles par seconde
-    accum: f32,            // Accumulateur de temps
-    cam_yaw: f32,          // Rotation horizontale (degrés)
-    cam_pitch: f32,        // Rotation verticale (degrés)
-    cam_distance: f32,     // Distance de la caméra
-    cam_target: Vec3,      // Point visé
+    speed: f32,        // Cycles par seconde
+    accum: f32,        // Accumulateur de temps
+    cam_yaw: f32,      // Rotation horizontale (degrés)
+    cam_pitch: f32,    // Rotation verticale (degrés)
+    cam_distance: f32, // Distance de la caméra
+    cam_target: Vec3,  // Point visé
     show_gui: bool,
     render_mode: RenderMode,
     seed: u32,
@@ -367,7 +376,11 @@ impl AppState {
         monde.initialiser_monde(seed, density);
 
         let scenarios = list_scenarios();
-        let selected_sc = if !scenarios.is_empty() { scenarios[0].clone() } else { "".to_string() };
+        let selected_sc = if !scenarios.is_empty() {
+            scenarios[0].clone()
+        } else {
+            "".to_string()
+        };
 
         Self {
             monde,
@@ -415,7 +428,8 @@ impl AppState {
 
     fn reset(&mut self) {
         self.monde = MondeSED::new(self.world_size, self.world_size, self.world_size);
-        self.monde.initialiser_monde(self.seed, self.initial_density);
+        self.monde
+            .initialiser_monde(self.seed, self.initial_density);
         self.pop_history.clear();
         self.energy_history.clear();
         self.accum = 0.0;
@@ -452,7 +466,11 @@ impl AppState {
 
     fn update_stats(&mut self) {
         let pop = self.monde.get_nombre_cellules_vivantes() as f32;
-        let total_energy: f32 = self.monde.world_map.chunks.values()
+        let total_energy: f32 = self
+            .monde
+            .world_map
+            .chunks
+            .values()
             .flat_map(|chk| chk.cells.iter())
             .filter(|c| c.is_alive)
             .map(|c| c.e)
@@ -474,7 +492,7 @@ fn color_for_cell(cell: &rust_sed::simulation::cell::Cell, mode: RenderMode) -> 
     match mode {
         RenderMode::Type => match cell.t {
             CellType::Souche => Color::new(0.2, 0.8, 0.3, 0.85),
-            CellType::Soma   => Color::new(0.9, 0.6, 0.1, 0.85),
+            CellType::Soma => Color::new(0.9, 0.6, 0.1, 0.85),
             CellType::Neurone => Color::new(0.3, 0.5, 1.0, 0.85),
             CellType::Static => Color::new(0.4, 0.4, 0.4, 0.4),
         },
@@ -503,10 +521,13 @@ fn color_for_cell(cell: &rust_sed::simulation::cell::Cell, mode: RenderMode) -> 
 
 fn apply_brush_action(state: &mut AppState, coords: (i32, i32, i32)) {
     let (x, y, z) = coords;
-    if y <= 0 { return; }
+    if y <= 0 {
+        return;
+    }
 
-    let (cx, cy, cz, lx, ly, lz) = rust_sed::simulation::world::WorldMap::world_to_chunk_coords(x, y, z);
-    
+    let (cx, cy, cz, lx, ly, lz) =
+        rust_sed::simulation::world::WorldMap::world_to_chunk_coords(x, y, z);
+
     let chunk = state.monde.world_map.get_or_create_chunk(cx, cy, cz);
     let cell = chunk.get_cell_mut(lx, ly, lz);
 
@@ -547,7 +568,11 @@ fn handle_interaction(state: &mut AppState, camera: &Camera3D) {
                 state.selected_cell = Some((x, y, z));
             } else {
                 let target_coords = if state.brush_tool == 1 {
-                    (x + normal.x as i32, y + normal.y as i32, z + normal.z as i32)
+                    (
+                        x + normal.x as i32,
+                        y + normal.y as i32,
+                        z + normal.z as i32,
+                    )
                 } else {
                     (x, y, z)
                 };
@@ -558,10 +583,12 @@ fn handle_interaction(state: &mut AppState, camera: &Camera3D) {
 }
 
 fn play_replay_actions(state: &mut AppState) {
-    if !state.replay.is_replaying { return; }
+    if !state.replay.is_replaying {
+        return;
+    }
 
     let current_cycle = state.monde.cycle_actuel;
-    
+
     while state.replay.playback_index < state.replay.actions.len() {
         let act = &state.replay.actions[state.replay.playback_index];
         if act.cycle == current_cycle {
@@ -575,7 +602,9 @@ fn play_replay_actions(state: &mut AppState) {
                     "cout_mouvement" => state.monde.params.cout_mouvement = val1,
                     "facteur_echange_energie" => state.monde.params.facteur_echange_energie = val1,
                     "seuil_similarite_r" => state.monde.params.seuil_similarite_r = val1,
-                    "ticks_neuraux_par_physique" => state.monde.params.ticks_neuraux_par_physique = val1 as usize,
+                    "ticks_neuraux_par_physique" => {
+                        state.monde.params.ticks_neuraux_par_physique = val1 as usize
+                    }
                     "seuil_fire" => state.monde.params.seuil_fire = val1,
                     "cout_spike" => state.monde.params.cout_spike = val1,
                     "learn_rate" => state.monde.params.learn_rate = val1,
@@ -588,7 +617,8 @@ fn play_replay_actions(state: &mut AppState) {
                 let z = act.val3 as i32;
                 let mode = act.val4 as usize;
 
-                let (cx, cy, cz, lx, ly, lz) = rust_sed::simulation::world::WorldMap::world_to_chunk_coords(x, y, z);
+                let (cx, cy, cz, lx, ly, lz) =
+                    rust_sed::simulation::world::WorldMap::world_to_chunk_coords(x, y, z);
                 let chunk = state.monde.world_map.get_or_create_chunk(cx, cy, cz);
                 let cell = chunk.get_cell_mut(lx, ly, lz);
 
@@ -634,14 +664,21 @@ fn handle_csv_logging(state: &mut AppState) {
             state.csv_file = Some(file);
             use std::io::Write;
             if let Some(ref mut f) = state.csv_file {
-                let _ = writeln!(f, "Cycle,Total_Energy,Pop_Count,Souche_Count,Soma_Count,Neurone_Count,Mean_Stress,Spike_Rate");
+                let _ = writeln!(
+                    f,
+                    "Cycle,Total_Energy,Pop_Count,Souche_Count,Soma_Count,Neurone_Count,Mean_Stress,Spike_Rate"
+                );
             }
         }
     }
 
     if let Some(ref mut f) = state.csv_file {
         let pop = state.monde.get_nombre_cellules_vivantes();
-        let total_e: f32 = state.monde.world_map.chunks.values()
+        let total_e: f32 = state
+            .monde
+            .world_map
+            .chunks
+            .values()
             .flat_map(|chk| chk.cells.iter())
             .filter(|c| c.is_alive)
             .map(|c| c.e)
@@ -674,12 +711,30 @@ fn handle_csv_logging(state: &mut AppState) {
             }
         }
 
-        let mean_stress = if pop > 0 { sum_stress / pop as f32 } else { 0.0 };
-        let spike_rate = if active_neurons > 0 { sum_spike as f32 / active_neurons as f32 } else { 0.0 };
+        let mean_stress = if pop > 0 {
+            sum_stress / pop as f32
+        } else {
+            0.0
+        };
+        let spike_rate = if active_neurons > 0 {
+            sum_spike as f32 / active_neurons as f32
+        } else {
+            0.0
+        };
 
         use std::io::Write;
-        let _ = writeln!(f, "{},{},{},{},{},{},{},{}",
-            state.monde.cycle_actuel, total_e, pop, n_souche, n_soma, n_neurone, mean_stress, spike_rate);
+        let _ = writeln!(
+            f,
+            "{},{},{},{},{},{},{},{}",
+            state.monde.cycle_actuel,
+            total_e,
+            pop,
+            n_souche,
+            n_soma,
+            n_neurone,
+            mean_stress,
+            spike_rate
+        );
     }
 }
 
@@ -689,16 +744,20 @@ fn handle_csv_logging(state: &mut AppState) {
 
 fn render_cells(state: &AppState) {
     let scale = state.cell_scale;
-    
+
     for chunk in state.monde.world_map.chunks.values() {
-        if !chunk.has_alive_cells { continue; }
-        
+        if !chunk.has_alive_cells {
+            continue;
+        }
+
         for lx in 0..CHUNK_SIZE {
             for ly in 0..CHUNK_SIZE {
                 for lz in 0..CHUNK_SIZE {
                     let cell = chunk.get_cell(lx, ly, lz);
-                    if !cell.is_alive { continue; }
-                    
+                    if !cell.is_alive {
+                        continue;
+                    }
+
                     match cell.t {
                         CellType::Souche if !state.show_souche => continue,
                         CellType::Soma if !state.show_soma => continue,
@@ -706,19 +765,37 @@ fn render_cells(state: &AppState) {
                         CellType::Static if !state.show_static => continue,
                         _ => {}
                     }
-                    
-                    let wx = (chunk.cx * CHUNK_SIZE as i32 + lx as i32) as f32;
-                    let wy = (chunk.cy * CHUNK_SIZE as i32 + ly as i32) as f32;
-                    let wz = (chunk.cz * CHUNK_SIZE as i32 + lz as i32) as f32;
-                    
+
+                    let wx_i = chunk.cx * CHUNK_SIZE as i32 + lx as i32;
+                    let wy_i = chunk.cy * CHUNK_SIZE as i32 + ly as i32;
+                    let wz_i = chunk.cz * CHUNK_SIZE as i32 + lz as i32;
+
+                    // Occlusion Check : évite de dessiner les cellules complètement entourées
+                    let n_up = state.monde.world_map.get_cell_global(wx_i, wy_i + 1, wz_i);
+                    let n_down = state.monde.world_map.get_cell_global(wx_i, wy_i - 1, wz_i);
+                    let n_left = state.monde.world_map.get_cell_global(wx_i - 1, wy_i, wz_i);
+                    let n_right = state.monde.world_map.get_cell_global(wx_i + 1, wy_i, wz_i);
+                    let n_front = state.monde.world_map.get_cell_global(wx_i, wy_i, wz_i + 1);
+                    let n_back = state.monde.world_map.get_cell_global(wx_i, wy_i, wz_i - 1);
+
+                    let is_occluded = n_up.map_or(false, |c| c.is_alive)
+                        && n_down.map_or(false, |c| c.is_alive)
+                        && n_left.map_or(false, |c| c.is_alive)
+                        && n_right.map_or(false, |c| c.is_alive)
+                        && n_front.map_or(false, |c| c.is_alive)
+                        && n_back.map_or(false, |c| c.is_alive);
+
+                    if is_occluded {
+                        continue;
+                    }
+
+                    let wx = wx_i as f32;
+                    let wy = wy_i as f32;
+                    let wz = wz_i as f32;
+
                     let col = color_for_cell(cell, state.render_mode);
-                    
-                    draw_cube(
-                        vec3(wx, wy, wz),
-                        vec3(scale, scale, scale),
-                        None,
-                        col,
-                    );
+
+                    draw_cube(vec3(wx, wy, wz), vec3(scale, scale, scale), None, col);
                     draw_cube_wires(
                         vec3(wx, wy, wz),
                         vec3(scale, scale, scale),
@@ -733,10 +810,10 @@ fn render_cells(state: &AppState) {
     if state.show_static {
         let mut active_cols = std::collections::HashSet::new();
         for key in state.monde.world_map.chunks.keys() {
-            if let Some(chunk) = state.monde.world_map.chunks.get(key) {
-                if chunk.has_alive_cells {
-                    active_cols.insert((key.x, key.z));
-                }
+            if let Some(chunk) = state.monde.world_map.chunks.get(key)
+                && chunk.has_alive_cells
+            {
+                active_cols.insert((key.x, key.z));
             }
         }
         for (cx, cz) in active_cols {
@@ -745,12 +822,7 @@ fn render_cells(state: &AppState) {
                     let wx = (cx * CHUNK_SIZE as i32 + lx as i32) as f32;
                     let wz = (cz * CHUNK_SIZE as i32 + lz as i32) as f32;
                     let col = Color::new(0.4, 0.4, 0.4, 0.4);
-                    draw_cube(
-                        vec3(wx, 0.0, wz),
-                        vec3(scale, scale, scale),
-                        None,
-                        col,
-                    );
+                    draw_cube(vec3(wx, 0.0, wz), vec3(scale, scale, scale), None, col);
                     draw_cube_wires(
                         vec3(wx, 0.0, wz),
                         vec3(scale, scale, scale),
@@ -782,7 +854,7 @@ fn render_grid(monde: &MondeSED, size: i32) {
 
     let half_size = size / 2;
     let grid_color = Color::new(0.3, 0.3, 0.3, 0.3);
-    
+
     let start_x = cx - half_size;
     let end_x = cx + half_size;
     let start_z = cz - half_size;
@@ -802,7 +874,7 @@ fn render_grid(monde: &MondeSED, size: i32) {
             grid_color,
         );
     }
-    
+
     // Repères des axes à l'origine (0, 0, 0)
     let axis_len = (size as f32 * 0.3).min(10.0);
     draw_line_3d(vec3(0.0, 0.0, 0.0), vec3(axis_len, 0.0, 0.0), RED);
@@ -815,32 +887,38 @@ fn render_grid(monde: &MondeSED, size: i32) {
 // ===========================================================================
 
 fn draw_sparkline(ui: &mut egui::Ui, data: &[f32], color: egui::Color32, label: &str) {
-    if data.is_empty() { return; }
-    
+    if data.is_empty() {
+        return;
+    }
+
     ui.label(label);
-    let (response, painter) = ui.allocate_painter(
-        egui::vec2(ui.available_width(), 50.0),
-        egui::Sense::hover(),
-    );
+    let (response, painter) =
+        ui.allocate_painter(egui::vec2(ui.available_width(), 50.0), egui::Sense::hover());
     let rect = response.rect;
-    
+
     // Background
     painter.rect_filled(rect, 2.0, egui::Color32::from_gray(30));
-    
+
     let max_val = data.iter().cloned().fold(1.0f32, f32::max);
     let n = data.len();
-    if n < 2 { return; }
-    
-    let points: Vec<egui::Pos2> = data.iter().enumerate().map(|(i, &v)| {
-        let x = rect.left() + (i as f32 / (n - 1) as f32) * rect.width();
-        let y = rect.bottom() - (v / max_val) * rect.height();
-        egui::pos2(x, y)
-    }).collect();
-    
+    if n < 2 {
+        return;
+    }
+
+    let points: Vec<egui::Pos2> = data
+        .iter()
+        .enumerate()
+        .map(|(i, &v)| {
+            let x = rect.left() + (i as f32 / (n - 1) as f32) * rect.width();
+            let y = rect.bottom() - (v / max_val) * rect.height();
+            egui::pos2(x, y)
+        })
+        .collect();
+
     for pair in points.windows(2) {
         painter.line_segment([pair[0], pair[1]], egui::Stroke::new(1.5, color));
     }
-    
+
     // Dernière valeur affichée
     if let Some(&last) = data.last() {
         painter.text(
@@ -859,8 +937,7 @@ fn draw_sparkline(ui: &mut egui::Ui, data: &[f32], color: egui::Color32, label: 
 
 fn draw_gui(state: &mut AppState) {
     egui_macroquad::ui(|egui_ctx| {
-        state.mouse_on_gui = egui_ctx.wants_pointer_input()
-            || egui_ctx.is_pointer_over_area();
+        state.mouse_on_gui = egui_ctx.wants_pointer_input() || egui_ctx.is_pointer_over_area();
 
         egui::SidePanel::left("control_panel")
             .default_width(300.0)
@@ -871,7 +948,14 @@ fn draw_gui(state: &mut AppState) {
                 // --- Simulation ---
                 ui.collapsing("⚙ Simulation", |ui| {
                     ui.horizontal(|ui| {
-                        if ui.button(if state.is_running { "⏸ Pause" } else { "▶ Lancer" }).clicked() {
+                        if ui
+                            .button(if state.is_running {
+                                "⏸ Pause"
+                            } else {
+                                "▶ Lancer"
+                            })
+                            .clicked()
+                        {
                             state.is_running = !state.is_running;
                         }
                         if ui.button("⏩ +1 Cycle").clicked() {
@@ -882,12 +966,14 @@ fn draw_gui(state: &mut AppState) {
                     ui.add(egui::Slider::new(&mut state.speed, 0.1..=30.0).text("Vitesse (Hz)"));
                     ui.label(format!("Cycle: {}", state.monde.cycle_actuel));
                     ui.label(format!("FPS: {:.0}", state.last_fps));
-                    
+
                     ui.separator();
                     ui.label("Nouveau Monde:");
                     ui.add(egui::Slider::new(&mut state.seed, 0..=9999).text("Seed"));
                     ui.add(egui::Slider::new(&mut state.world_size, 8..=64).text("Taille"));
-                    ui.add(egui::Slider::new(&mut state.initial_density, 0.01..=0.5).text("Densité"));
+                    ui.add(
+                        egui::Slider::new(&mut state.initial_density, 0.01..=0.5).text("Densité"),
+                    );
                     if ui.button("🔄 Réinitialiser").clicked() {
                         state.reset();
                     }
@@ -914,9 +1000,13 @@ fn draw_gui(state: &mut AppState) {
                 ui.collapsing("🔍 Inspecteur de cellule", |ui| {
                     if let Some((x, y, z)) = state.selected_cell {
                         ui.label(format!("Coordonnées: ({}, {}, {})", x, y, z));
-                        
-                        let (cx, cy, cz, lx, ly, lz) = rust_sed::simulation::world::WorldMap::world_to_chunk_coords(x, y, z);
-                        let cell_opt = state.monde.world_map.get_chunk(cx, cy, cz)
+
+                        let (cx, cy, cz, lx, ly, lz) =
+                            rust_sed::simulation::world::WorldMap::world_to_chunk_coords(x, y, z);
+                        let cell_opt = state
+                            .monde
+                            .world_map
+                            .get_chunk(cx, cy, cz)
                             .map(|chk| chk.get_cell(lx, ly, lz));
 
                         if let Some(cell) = cell_opt {
@@ -924,14 +1014,14 @@ fn draw_gui(state: &mut AppState) {
                                 ui.label(format!("Type: {:?}", cell.t));
                                 ui.label(format!("Âge: {} cycles", cell.a));
                                 ui.separator();
-                                
+
                                 ui.label("État physique :");
                                 ui.label(format!("Énergie: {:.3}", cell.e));
                                 ui.label(format!("Dette de besoin: {:.3}", cell.d));
                                 ui.label(format!("Stress (C): {:.3}", cell.c));
                                 ui.label(format!("Osmose (R): {:.3}", cell.r));
                                 ui.label(format!("Résistance (Sc): {:.3}", cell.sc));
-                                
+
                                 ui.separator();
                                 ui.label("État neural :");
                                 ui.label(format!("Potentiel (P): {:.3}", cell.p));
@@ -942,42 +1032,69 @@ fn draw_gui(state: &mut AppState) {
 
                                 ui.separator();
                                 ui.horizontal(|ui| {
-                                    if ui.button("Forcer Spike").clicked() {
-                                        if let Some(chunk) = state.monde.world_map.get_chunk_mut(cx, cy, cz) {
-                                            let cell_mut = chunk.get_cell_mut(lx, ly, lz);
-                                            cell_mut.p = 1.0;
-                                            cell_mut.h = (cell_mut.h << 1) | 1;
-                                            println!("[Inspecteur] Spike forcé en ({}, {}, {})", x, y, z);
-                                        }
+                                    if ui.button("Forcer Spike").clicked()
+                                        && let Some(chunk) =
+                                            state.monde.world_map.get_chunk_mut(cx, cy, cz)
+                                    {
+                                        let cell_mut = chunk.get_cell_mut(lx, ly, lz);
+                                        cell_mut.p = 1.0;
+                                        cell_mut.h = (cell_mut.h << 1) | 1;
+                                        println!(
+                                            "[Inspecteur] Spike forcé en ({}, {}, {})",
+                                            x, y, z
+                                        );
                                     }
-                                    if ui.button("Réinitialiser").clicked() {
-                                        if let Some(chunk) = state.monde.world_map.get_chunk_mut(cx, cy, cz) {
-                                            let cell_mut = chunk.get_cell_mut(lx, ly, lz);
-                                            let old_t = cell_mut.t;
-                                            *cell_mut = rust_sed::simulation::cell::Cell::default();
-                                            cell_mut.t = old_t;
-                                            cell_mut.is_alive = true;
-                                            cell_mut.e = 5.0;
-                                            cell_mut.clamp_variables();
-                                            println!("[Inspecteur] Cellule réinitialisée en ({}, {}, {})", x, y, z);
-                                        }
+                                    if ui.button("Réinitialiser").clicked()
+                                        && let Some(chunk) =
+                                            state.monde.world_map.get_chunk_mut(cx, cy, cz)
+                                    {
+                                        let cell_mut = chunk.get_cell_mut(lx, ly, lz);
+                                        let old_t = cell_mut.t;
+                                        *cell_mut = rust_sed::simulation::cell::Cell::default();
+                                        cell_mut.t = old_t;
+                                        cell_mut.is_alive = true;
+                                        cell_mut.e = 5.0;
+                                        cell_mut.clamp_variables();
+                                        println!(
+                                            "[Inspecteur] Cellule réinitialisée en ({}, {}, {})",
+                                            x, y, z
+                                        );
                                     }
                                 });
 
                                 ui.separator();
                                 ui.label("Modifier variables :");
-                                if let Some(chunk) = state.monde.world_map.get_chunk_mut(cx, cy, cz) {
+                                if let Some(chunk) = state.monde.world_map.get_chunk_mut(cx, cy, cz)
+                                {
                                     let cell_mut = chunk.get_cell_mut(lx, ly, lz);
                                     let mut temp_e = cell_mut.e;
-                                    if ui.add(egui::Slider::new(&mut temp_e, 0.0..=10.0).text("Énergie")).changed() {
+                                    if ui
+                                        .add(
+                                            egui::Slider::new(&mut temp_e, 0.0..=10.0)
+                                                .text("Énergie"),
+                                        )
+                                        .changed()
+                                    {
                                         cell_mut.e = temp_e;
                                     }
                                     let mut temp_p = cell_mut.p;
-                                    if ui.add(egui::Slider::new(&mut temp_p, -1.0..=1.0).text("Potentiel")).changed() {
+                                    if ui
+                                        .add(
+                                            egui::Slider::new(&mut temp_p, -1.0..=1.0)
+                                                .text("Potentiel"),
+                                        )
+                                        .changed()
+                                    {
                                         cell_mut.p = temp_p;
                                     }
                                     let mut temp_c = cell_mut.c;
-                                    if ui.add(egui::Slider::new(&mut temp_c, 0.0..=1.0).text("Stress")).changed() {
+                                    if ui
+                                        .add(
+                                            egui::Slider::new(&mut temp_c, 0.0..=1.0)
+                                                .text("Stress"),
+                                        )
+                                        .changed()
+                                    {
                                         cell_mut.c = temp_c;
                                     }
                                     cell_mut.clamp_variables();
@@ -1023,10 +1140,14 @@ fn draw_gui(state: &mut AppState) {
                             .selected_text(&state.selected_scenario)
                             .show_ui(ui, |ui| {
                                 for sc in &state.scenarios_list {
-                                    ui.selectable_value(&mut state.selected_scenario, sc.clone(), sc);
+                                    ui.selectable_value(
+                                        &mut state.selected_scenario,
+                                        sc.clone(),
+                                        sc,
+                                    );
                                 }
                             });
-                        
+
                         if ui.button("📥 Charger Scénario").clicked() {
                             let path = format!("scenarios/{}", state.selected_scenario);
                             if let Err(e) = charger_scenario(&mut state.monde, &path) {
@@ -1037,7 +1158,7 @@ fn draw_gui(state: &mut AppState) {
                             }
                         }
                     }
-                    
+
                     ui.separator();
                     ui.label("Snapshots (État complet) :");
                     ui.horizontal(|ui| {
@@ -1067,7 +1188,9 @@ fn draw_gui(state: &mut AppState) {
                             if ui.button("⏹ Arrêter Rec").clicked() {
                                 state.replay.is_recording = false;
                                 let _ = state.replay.save_recording("test_replay.json");
-                                println!("[Replay] Enregistrement sauvegardé dans test_replay.json");
+                                println!(
+                                    "[Replay] Enregistrement sauvegardé dans test_replay.json"
+                                );
                             }
                         } else {
                             if ui.button("🔴 Démarrer Rec").clicked() {
@@ -1094,18 +1217,25 @@ fn draw_gui(state: &mut AppState) {
                             }
                         }
                     });
-                    
+
                     if state.replay.is_recording {
                         ui.label("🔴 Enregistrement actif...");
                     }
                     if state.replay.is_replaying {
-                        ui.label(format!("▶ Lecture active : {}/{}", state.replay.playback_index, state.replay.actions.len()));
+                        ui.label(format!(
+                            "▶ Lecture active : {}/{}",
+                            state.replay.playback_index,
+                            state.replay.actions.len()
+                        ));
                     }
 
                     ui.separator();
                     ui.label("Monitoring CSV :");
                     ui.text_edit_singleline(&mut state.csv_filename);
-                    if ui.checkbox(&mut state.csv_recording, "Enregistrer dans CSV").changed() {
+                    if ui
+                        .checkbox(&mut state.csv_recording, "Enregistrer dans CSV")
+                        .changed()
+                    {
                         if !state.csv_recording {
                             state.csv_file = None;
                             println!("[CSV] Enregistrement arrêté.");
@@ -1118,12 +1248,16 @@ fn draw_gui(state: &mut AppState) {
                 // --- Statistiques ---
                 ui.collapsing("📊 Statistiques", |ui| {
                     let pop = state.monde.get_nombre_cellules_vivantes();
-                    let total_e: f32 = state.monde.world_map.chunks.values()
+                    let total_e: f32 = state
+                        .monde
+                        .world_map
+                        .chunks
+                        .values()
                         .flat_map(|chk| chk.cells.iter())
                         .filter(|c| c.is_alive)
                         .map(|c| c.e)
                         .sum();
-                    
+
                     let mut n_souche = 0;
                     let mut n_soma = 0;
                     let mut n_neurone = 0;
@@ -1147,8 +1281,18 @@ fn draw_gui(state: &mut AppState) {
                     ui.label(format!("Énergie totale: {:.1}", total_e));
 
                     // Mini sparklines
-                    draw_sparkline(ui, &state.pop_history, egui::Color32::from_rgb(100, 200, 100), "Population:");
-                    draw_sparkline(ui, &state.energy_history, egui::Color32::from_rgb(255, 200, 80), "Énergie:");
+                    draw_sparkline(
+                        ui,
+                        &state.pop_history,
+                        egui::Color32::from_rgb(100, 200, 100),
+                        "Population:",
+                    );
+                    draw_sparkline(
+                        ui,
+                        &state.energy_history,
+                        egui::Color32::from_rgb(255, 200, 80),
+                        "Énergie:",
+                    );
                 });
 
                 // --- Visualisation ---
@@ -1158,59 +1302,86 @@ fn draw_gui(state: &mut AppState) {
                     ui.radio_value(&mut state.render_mode, RenderMode::Energy, "Énergie");
                     ui.radio_value(&mut state.render_mode, RenderMode::Stress, "Stress (C)");
                     ui.radio_value(&mut state.render_mode, RenderMode::Gradient, "Gradient (G)");
-                    ui.radio_value(&mut state.render_mode, RenderMode::Potential, "Potentiel Neural (P)");
-                    
+                    ui.radio_value(
+                        &mut state.render_mode,
+                        RenderMode::Potential,
+                        "Potentiel Neural (P)",
+                    );
+
                     ui.separator();
                     ui.label("Filtres :");
                     ui.checkbox(&mut state.show_souche, "🟢 Souche");
                     ui.checkbox(&mut state.show_soma, "🟠 Soma");
                     ui.checkbox(&mut state.show_neurone, "🔵 Neurone");
                     ui.checkbox(&mut state.show_static, "⬜ Static (bedrock)");
-                    
+
                     ui.separator();
-                    ui.add(egui::Slider::new(&mut state.cell_scale, 0.1..=1.0).text("Taille cubes"));
+                    ui.add(
+                        egui::Slider::new(&mut state.cell_scale, 0.1..=1.0).text("Taille cubes"),
+                    );
                 });
 
                 // --- Paramètres Physiques ---
                 ui.collapsing("🔧 Paramètres Physiques", |ui| {
                     let mut val = state.monde.params.k_thermo;
-                    if ui.add(egui::Slider::new(&mut val, 0.0..=0.05).text("k_thermo")).changed() {
+                    if ui
+                        .add(egui::Slider::new(&mut val, 0.0..=0.05).text("k_thermo"))
+                        .changed()
+                    {
                         state.monde.params.k_thermo = val;
                         state.record_param_change("k_thermo", val);
                     }
-                    
+
                     let mut val = state.monde.params.sensibilite_soleil;
-                    if ui.add(egui::Slider::new(&mut val, 0.0..=0.1).text("Soleil (gain)")).changed() {
+                    if ui
+                        .add(egui::Slider::new(&mut val, 0.0..=0.1).text("Soleil (gain)"))
+                        .changed()
+                    {
                         state.monde.params.sensibilite_soleil = val;
                         state.record_param_change("sensibilite_soleil", val);
                     }
-                    
+
                     let mut val = state.monde.params.hauteur_soleil;
-                    if ui.add(egui::Slider::new(&mut val, 0.0..=1.0).text("Hauteur soleil")).changed() {
+                    if ui
+                        .add(egui::Slider::new(&mut val, 0.0..=1.0).text("Hauteur soleil"))
+                        .changed()
+                    {
                         state.monde.params.hauteur_soleil = val;
                         state.record_param_change("hauteur_soleil", val);
                     }
-                    
+
                     let mut val = state.monde.params.seuil_energie_division;
-                    if ui.add(egui::Slider::new(&mut val, 0.5..=5.0).text("Seuil division")).changed() {
+                    if ui
+                        .add(egui::Slider::new(&mut val, 0.5..=5.0).text("Seuil division"))
+                        .changed()
+                    {
                         state.monde.params.seuil_energie_division = val;
                         state.record_param_change("seuil_energie_division", val);
                     }
-                    
+
                     let mut val = state.monde.params.cout_mouvement;
-                    if ui.add(egui::Slider::new(&mut val, 0.0..=0.1).text("Coût mouvement")).changed() {
+                    if ui
+                        .add(egui::Slider::new(&mut val, 0.0..=0.1).text("Coût mouvement"))
+                        .changed()
+                    {
                         state.monde.params.cout_mouvement = val;
                         state.record_param_change("cout_mouvement", val);
                     }
-                    
+
                     let mut val = state.monde.params.facteur_echange_energie;
-                    if ui.add(egui::Slider::new(&mut val, 0.0..=0.5).text("Osmose")).changed() {
+                    if ui
+                        .add(egui::Slider::new(&mut val, 0.0..=0.5).text("Osmose"))
+                        .changed()
+                    {
                         state.monde.params.facteur_echange_energie = val;
                         state.record_param_change("facteur_echange_energie", val);
                     }
-                    
+
                     let mut val = state.monde.params.seuil_similarite_r;
-                    if ui.add(egui::Slider::new(&mut val, 0.01..=0.5).text("Seuil R")).changed() {
+                    if ui
+                        .add(egui::Slider::new(&mut val, 0.01..=0.5).text("Seuil R"))
+                        .changed()
+                    {
                         state.monde.params.seuil_similarite_r = val;
                         state.record_param_change("seuil_similarite_r", val);
                     }
@@ -1219,31 +1390,46 @@ fn draw_gui(state: &mut AppState) {
                 // --- Paramètres Neuraux ---
                 ui.collapsing("🧠 Paramètres Neuraux", |ui| {
                     let mut val_u = state.monde.params.ticks_neuraux_par_physique;
-                    if ui.add(egui::Slider::new(&mut val_u, 1..=20).text("Ticks neuraux")).changed() {
+                    if ui
+                        .add(egui::Slider::new(&mut val_u, 1..=20).text("Ticks neuraux"))
+                        .changed()
+                    {
                         state.monde.params.ticks_neuraux_par_physique = val_u;
                         state.record_param_change("ticks_neuraux_par_physique", val_u as f32);
                     }
-                    
+
                     let mut val = state.monde.params.seuil_fire;
-                    if ui.add(egui::Slider::new(&mut val, 0.1..=2.0).text("Seuil fire")).changed() {
+                    if ui
+                        .add(egui::Slider::new(&mut val, 0.1..=2.0).text("Seuil fire"))
+                        .changed()
+                    {
                         state.monde.params.seuil_fire = val;
                         state.record_param_change("seuil_fire", val);
                     }
-                    
+
                     let mut val = state.monde.params.cout_spike;
-                    if ui.add(egui::Slider::new(&mut val, 0.0..=0.05).text("Coût spike")).changed() {
+                    if ui
+                        .add(egui::Slider::new(&mut val, 0.0..=0.05).text("Coût spike"))
+                        .changed()
+                    {
                         state.monde.params.cout_spike = val;
                         state.record_param_change("cout_spike", val);
                     }
-                    
+
                     let mut val = state.monde.params.learn_rate;
-                    if ui.add(egui::Slider::new(&mut val, 0.001..=0.2).text("Learn rate")).changed() {
+                    if ui
+                        .add(egui::Slider::new(&mut val, 0.001..=0.2).text("Learn rate"))
+                        .changed()
+                    {
                         state.monde.params.learn_rate = val;
                         state.record_param_change("learn_rate", val);
                     }
-                    
+
                     let mut val = state.monde.params.decay_synapse;
-                    if ui.add(egui::Slider::new(&mut val, 0.9..=1.0).text("Decay synapse")).changed() {
+                    if ui
+                        .add(egui::Slider::new(&mut val, 0.9..=1.0).text("Decay synapse"))
+                        .changed()
+                    {
                         state.monde.params.decay_synapse = val;
                         state.record_param_change("decay_synapse", val);
                     }
@@ -1253,7 +1439,9 @@ fn draw_gui(state: &mut AppState) {
                 ui.collapsing("📷 Caméra", |ui| {
                     ui.label("Clic droit + glisser = orbiter");
                     ui.label("Molette = zoom");
-                    ui.add(egui::Slider::new(&mut state.cam_distance, 5.0..=150.0).text("Distance"));
+                    ui.add(
+                        egui::Slider::new(&mut state.cam_distance, 5.0..=150.0).text("Distance"),
+                    );
                     if ui.button("Recentrer").clicked() {
                         let b = state.monde.calculer_barycentre();
                         state.cam_target = vec3(b.0, b.1, b.2);
@@ -1264,30 +1452,51 @@ fn draw_gui(state: &mut AppState) {
                 ui.collapsing("⚡ Pré-chargement (Replay Cache)", |ui| {
                     if state.is_in_preload_mode {
                         ui.label("🔴 Mode Replay Cache activé");
-                        ui.label(format!("Cycle courant : {} / {}", state.preload_index, if state.preloaded_states.is_empty() { 0 } else { state.preloaded_states.len() - 1 }));
+                        ui.label(format!(
+                            "Cycle courant : {} / {}",
+                            state.preload_index,
+                            if state.preloaded_states.is_empty() {
+                                0
+                            } else {
+                                state.preloaded_states.len() - 1
+                            }
+                        ));
 
                         let mut idx = state.preload_index;
-                        let max_idx = if state.preloaded_states.is_empty() { 0 } else { state.preloaded_states.len() - 1 };
-                        if ui.add(egui::Slider::new(&mut idx, 0..=max_idx).text("Temps")).changed() {
+                        let max_idx = if state.preloaded_states.is_empty() {
+                            0
+                        } else {
+                            state.preloaded_states.len() - 1
+                        };
+                        if ui
+                            .add(egui::Slider::new(&mut idx, 0..=max_idx).text("Temps"))
+                            .changed()
+                        {
                             state.preload_index = idx;
                             state.monde = state.preloaded_states[state.preload_index].clone();
                         }
 
                         ui.horizontal(|ui| {
-                            if ui.button(if state.preload_is_playing { "⏸ Pause" } else { "▶ Lire" }).clicked() {
+                            if ui
+                                .button(if state.preload_is_playing {
+                                    "⏸ Pause"
+                                } else {
+                                    "▶ Lire"
+                                })
+                                .clicked()
+                            {
                                 state.preload_is_playing = !state.preload_is_playing;
                             }
-                            if ui.button("◀ Étape").clicked() {
-                                if state.preload_index > 0 {
-                                    state.preload_index -= 1;
-                                    state.monde = state.preloaded_states[state.preload_index].clone();
-                                }
+                            if ui.button("◀ Étape").clicked() && state.preload_index > 0 {
+                                state.preload_index -= 1;
+                                state.monde = state.preloaded_states[state.preload_index].clone();
                             }
-                            if ui.button("Étape ▶").clicked() {
-                                if !state.preloaded_states.is_empty() && state.preload_index < state.preloaded_states.len() - 1 {
-                                    state.preload_index += 1;
-                                    state.monde = state.preloaded_states[state.preload_index].clone();
-                                }
+                            if ui.button("Étape ▶").clicked()
+                                && !state.preloaded_states.is_empty()
+                                && state.preload_index < state.preloaded_states.len() - 1
+                            {
+                                state.preload_index += 1;
+                                state.monde = state.preloaded_states[state.preload_index].clone();
                             }
                         });
 
@@ -1302,7 +1511,10 @@ fn draw_gui(state: &mut AppState) {
                         }
                     } else {
                         ui.label("Calculer et pré-charger N cycles :");
-                        ui.add(egui::Slider::new(&mut state.preload_cycles_count, 10..=2000).text("Cycles"));
+                        ui.add(
+                            egui::Slider::new(&mut state.preload_cycles_count, 10..=2000)
+                                .text("Cycles"),
+                        );
                         if ui.button("🚀 Lancer le pré-chargement").clicked() {
                             lancer_prechargement(state);
                         }
@@ -1330,10 +1542,12 @@ fn avancer_un_cycle(state: &mut AppState) {
 }
 
 fn lancer_prechargement(state: &mut AppState) {
-    if state.preload_cycles_count <= 0 { return; }
+    if state.preload_cycles_count <= 0 {
+        return;
+    }
 
     state.preloaded_states.clear();
-    
+
     // Enregistrer l'état de départ initial
     state.preloaded_states.push(state.monde.clone());
 
@@ -1349,8 +1563,11 @@ fn lancer_prechargement(state: &mut AppState) {
     state.is_in_preload_mode = true;
     state.is_running = false;
     state.preload_is_playing = false;
-    
-    println!("[Preload] {} cycles pré-chargés en mémoire.", state.preload_cycles_count);
+
+    println!(
+        "[Preload] {} cycles pré-chargés en mémoire.",
+        state.preload_cycles_count
+    );
 }
 
 fn handle_camera_input(state: &mut AppState) {
@@ -1395,7 +1612,8 @@ fn handle_camera_input(state: &mut AppState) {
     if is_key_pressed(KeyCode::Right) {
         if state.is_in_preload_mode {
             if !state.preloaded_states.is_empty() {
-                state.preload_index = (state.preload_index + 1).min(state.preloaded_states.len() - 1);
+                state.preload_index =
+                    (state.preload_index + 1).min(state.preloaded_states.len() - 1);
             }
         } else {
             avancer_un_cycle(state);
@@ -1407,11 +1625,12 @@ fn compute_camera(state: &AppState) -> Camera3D {
     let yaw_rad = state.cam_yaw.to_radians();
     let pitch_rad = state.cam_pitch.to_radians();
 
-    let cam_pos = state.cam_target + vec3(
-        state.cam_distance * pitch_rad.cos() * yaw_rad.sin(),
-        state.cam_distance * pitch_rad.sin(),
-        state.cam_distance * pitch_rad.cos() * yaw_rad.cos(),
-    );
+    let cam_pos = state.cam_target
+        + vec3(
+            state.cam_distance * pitch_rad.cos() * yaw_rad.sin(),
+            state.cam_distance * pitch_rad.sin(),
+            state.cam_distance * pitch_rad.cos() * yaw_rad.cos(),
+        );
 
     Camera3D {
         position: cam_pos,
@@ -1429,18 +1648,35 @@ fn compute_camera(state: &AppState) -> Camera3D {
 
 fn draw_hud(state: &AppState) {
     let pop = state.monde.get_nombre_cellules_vivantes();
-    let status = if state.is_running { "▶ EN COURS" } else if state.replay.is_replaying { "▶ REPLAY" } else { "⏸ PAUSE" };
+    let status = if state.is_running {
+        "▶ EN COURS"
+    } else if state.replay.is_replaying {
+        "▶ REPLAY"
+    } else {
+        "⏸ PAUSE"
+    };
 
     let start_x = if state.show_gui { 315.0 } else { 10.0 };
 
     draw_text(
-        &format!("{} | Cycle: {} | Pop: {} | FPS: {:.0}",
-            status, state.monde.cycle_actuel, pop, state.last_fps),
-        start_x, 20.0, 20.0, WHITE,
+        format!(
+            "{} | Cycle: {} | Pop: {} | FPS: {:.0}",
+            status, state.monde.cycle_actuel, pop, state.last_fps
+        ),
+        start_x,
+        20.0,
+        20.0,
+        WHITE,
     );
 
     if !state.show_gui {
-        draw_text("[TAB] Interface | [ESPACE] Play/Pause | [→] +1 Cycle", 10.0, 40.0, 16.0, GRAY);
+        draw_text(
+            "[TAB] Interface | [ESPACE] Play/Pause | [→] +1 Cycle",
+            10.0,
+            40.0,
+            16.0,
+            GRAY,
+        );
     }
 }
 
@@ -1450,6 +1686,106 @@ fn draw_hud(state: &AppState) {
 
 #[macroquad::main(window_conf)]
 async fn main() {
+    // --- Parsing des arguments CLI ---
+    let args: Vec<String> = std::env::args().collect();
+    let mut headless = false;
+    let mut scenario_path = None;
+    let mut cycles = 100;
+    let mut csv_output = "headless_log.csv".to_string();
+    let mut json_output = "headless_final.json".to_string();
+
+    let mut arg_idx = 1;
+    while arg_idx < args.len() {
+        match args[arg_idx].as_str() {
+            "--headless" => {
+                headless = true;
+            }
+            "--scenario" => {
+                if arg_idx + 1 < args.len() {
+                    scenario_path = Some(args[arg_idx + 1].clone());
+                    arg_idx += 1;
+                }
+            }
+            "--cycles" => {
+                if arg_idx + 1 < args.len() {
+                    if let Ok(c) = args[arg_idx + 1].parse::<i32>() {
+                        cycles = c;
+                    }
+                    arg_idx += 1;
+                }
+            }
+            "--output" => {
+                if arg_idx + 1 < args.len() {
+                    csv_output = args[arg_idx + 1].clone();
+                    arg_idx += 1;
+                }
+            }
+            "--save-final" => {
+                if arg_idx + 1 < args.len() {
+                    json_output = args[arg_idx + 1].clone();
+                    arg_idx += 1;
+                }
+            }
+            _ => {}
+        }
+        arg_idx += 1;
+    }
+
+    if headless {
+        println!("[Headless] Mode sans interface activé.");
+        let mut state = AppState::new();
+
+        if let Some(path) = scenario_path {
+            println!("[Headless] Chargement du scénario depuis : {}", path);
+            if let Err(e) = charger_scenario(&mut state.monde, &path) {
+                eprintln!("[Erreur] Impossible de charger le scénario : {}", e);
+                std::process::exit(1);
+            }
+        } else {
+            println!("[Headless] Aucun scénario spécifié. Initialisation d'un monde aléatoire par défaut.");
+            state.reset();
+        }
+
+        // Configuration du log CSV
+        state.csv_recording = true;
+        state.csv_filename = csv_output.clone();
+
+        // Premier log avec l'état initial
+        handle_csv_logging(&mut state);
+
+        println!("[Headless] Exécution de {} cycles de simulation...", cycles);
+        let start_time = std::time::Instant::now();
+
+        for cycle in 1..=cycles {
+            state.monde.avancer_temps();
+            handle_csv_logging(&mut state);
+
+            if cycle % 50 == 0 || cycle == cycles {
+                let pop = state.monde.get_nombre_cellules_vivantes();
+                println!(
+                    "[Headless] Cycle {} / {} — Population active : {}",
+                    cycle, cycles, pop
+                );
+            }
+        }
+
+        let duration = start_time.elapsed();
+        println!(
+            "[Headless] Simulation complétée en {:.2} secondes ({:.2} Hz).",
+            duration.as_secs_f32(),
+            cycles as f32 / duration.as_secs_f32()
+        );
+
+        // Sauvegarde de l'état final
+        println!("[Headless] Sauvegarde de l'état final dans : {}", json_output);
+        if let Err(e) = save_snapshot(&state.monde, &json_output) {
+            eprintln!("[Erreur] Échec de la sauvegarde de l'état final : {}", e);
+        }
+
+        println!("[Headless] Terminé avec succès. Fichier CSV : {}", csv_output);
+        std::process::exit(0);
+    }
+
     let mut state = AppState::new();
     state.update_stats();
 
