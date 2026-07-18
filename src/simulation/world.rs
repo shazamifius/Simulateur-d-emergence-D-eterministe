@@ -850,6 +850,123 @@ impl MondeSED {
                 chunk.update_active_flags();
             });
     }
+
+    pub fn segmenter_entites(&self) -> Vec<EntiteMulticellulaire> {
+        let mut alive_cells = HashMap::new();
+        for chunk in self.world_map.chunks.values() {
+            if !chunk.has_alive_cells {
+                continue;
+            }
+            for lx in 0..CHUNK_SIZE {
+                for ly in 0..CHUNK_SIZE {
+                    for lz in 0..CHUNK_SIZE {
+                        let cell = chunk.get_cell(lx, ly, lz);
+                        if cell.is_alive && cell.t != CellType::Static {
+                            let wx = chunk.cx * CHUNK_SIZE as i32 + lx as i32;
+                            let wy = chunk.cy * CHUNK_SIZE as i32 + ly as i32;
+                            let wz = chunk.cz * CHUNK_SIZE as i32 + lz as i32;
+                            alive_cells.insert((wx, wy, wz), *cell);
+                        }
+                    }
+                }
+            }
+        }
+
+        let mut visited = std::collections::HashSet::new();
+        let mut entities = Vec::new();
+        let mut entity_id = 0;
+
+        for &coord in alive_cells.keys() {
+            if visited.contains(&coord) {
+                continue;
+            }
+
+            let mut queue = std::collections::VecDeque::new();
+            let mut group = Vec::new();
+
+            queue.push_back(coord);
+            visited.insert(coord);
+
+            while let Some(current) = queue.pop_front() {
+                group.push(current);
+
+                for dz in -1..=1 {
+                    for dy in -1..=1 {
+                        for dx in -1..=1 {
+                            if dx == 0 && dy == 0 && dz == 0 {
+                                continue;
+                            }
+                            let neighbor = (current.0 + dx, current.1 + dy, current.2 + dz);
+                            if alive_cells.contains_key(&neighbor) && !visited.contains(&neighbor) {
+                                visited.insert(neighbor);
+                                queue.push_back(neighbor);
+                            }
+                        }
+                    }
+                }
+            }
+
+            let size = group.len();
+            let mut n_souche = 0;
+            let mut n_soma = 0;
+            let mut n_neurone = 0;
+            let mut total_energy = 0.0;
+            let mut firing_neurons = 0;
+            let mut sum_x = 0.0;
+            let mut sum_y = 0.0;
+            let mut sum_z = 0.0;
+
+            for &c_coord in &group {
+                if let Some(cell) = alive_cells.get(&c_coord) {
+                    total_energy += cell.e;
+                    sum_x += c_coord.0 as f32;
+                    sum_y += c_coord.1 as f32;
+                    sum_z += c_coord.2 as f32;
+
+                    match cell.t {
+                        CellType::Souche => n_souche += 1,
+                        CellType::Soma => n_soma += 1,
+                        CellType::Neurone => {
+                            n_neurone += 1;
+                            if (cell.h & 1) != 0 {
+                                firing_neurons += 1;
+                            }
+                        }
+                        CellType::Static => {}
+                    }
+                }
+            }
+
+            let composition_souche = n_souche as f32 / size as f32;
+            let composition_soma = n_soma as f32 / size as f32;
+            let composition_neurone = n_neurone as f32 / size as f32;
+            let avg_energy = total_energy / size as f32;
+            let neural_firing_rate = if n_neurone > 0 {
+                firing_neurons as f32 / n_neurone as f32
+            } else {
+                0.0
+            };
+            let center_of_gravity = [
+                sum_x / size as f32,
+                sum_y / size as f32,
+                sum_z / size as f32,
+            ];
+
+            entities.push(EntiteMulticellulaire {
+                id: entity_id,
+                size,
+                composition_souche,
+                composition_soma,
+                composition_neurone,
+                avg_energy,
+                neural_firing_rate,
+                center_of_gravity,
+            });
+            entity_id += 1;
+        }
+
+        entities
+    }
 }
 
 pub struct SmallRng {
@@ -884,4 +1001,16 @@ pub fn deterministic_noise(x: i32, y: i32, z: i32, cycle: i32, sub_tick: i32, se
         ^ (sub_tick as u32).wrapping_mul(1234)
         ^ seed.wrapping_mul(9781);
     ((hash % 100) as f32 / 1000.0) - 0.05
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct EntiteMulticellulaire {
+    pub id: usize,
+    pub size: usize,
+    pub composition_souche: f32,
+    pub composition_soma: f32,
+    pub composition_neurone: f32,
+    pub avg_energy: f32,
+    pub neural_firing_rate: f32,
+    pub center_of_gravity: [f32; 3],
 }

@@ -3,6 +3,8 @@ use rust_sed::simulation::cell::CellType;
 use rust_sed::simulation::chunk::CHUNK_SIZE;
 use rust_sed::simulation::world::MondeSED;
 use serde::{Deserialize, Serialize};
+use std::io::{Read, Write};
+use std::net::{TcpListener, TcpStream};
 
 // ===========================================================================
 // Configuration de la fenêtre macroquad
@@ -93,6 +95,22 @@ fn list_scenarios() -> Vec<String> {
         for entry in entries.flatten() {
             if let Some(ext) = entry.path().extension()
                 && ext == "json"
+                && let Some(name) = entry.path().file_name()
+            {
+                list.push(name.to_string_lossy().to_string());
+            }
+        }
+    }
+    list
+}
+
+fn list_snapshots() -> Vec<String> {
+    let mut list = Vec::new();
+    let _ = std::fs::create_dir_all("snapshots"); // ensure dir exists
+    if let Ok(entries) = std::fs::read_dir("snapshots") {
+        for entry in entries.flatten() {
+            if let Some(ext) = entry.path().extension()
+                && (ext == "json" || ext == "sed")
                 && let Some(name) = entry.path().file_name()
             {
                 list.push(name.to_string_lossy().to_string());
@@ -356,6 +374,12 @@ struct AppState {
     is_in_preload_mode: bool,
     preload_cycles_count: i32,
     preload_is_playing: bool,
+
+    // Snapshots & API
+    snapshots_list: Vec<String>,
+    selected_snapshot: String,
+    snapshot_filename_input: String,
+    api_listener: Option<TcpListener>,
 }
 
 #[derive(PartialEq, Clone, Copy)]
@@ -380,6 +404,25 @@ impl AppState {
             scenarios[0].clone()
         } else {
             "".to_string()
+        };
+
+        let snapshots = list_snapshots();
+        let selected_snap = if !snapshots.is_empty() {
+            snapshots[0].clone()
+        } else {
+            "".to_string()
+        };
+
+        let listener = match TcpListener::bind("127.0.0.1:8080") {
+            Ok(l) => {
+                l.set_nonblocking(true).unwrap();
+                println!("[API] Serveur TCP démarré sur 127.0.0.1:8080");
+                Some(l)
+            }
+            Err(e) => {
+                println!("[API Erreur] Impossible de démarrer le serveur TCP : {:?}", e);
+                None
+            }
         };
 
         Self {
@@ -423,6 +466,11 @@ impl AppState {
             is_in_preload_mode: false,
             preload_cycles_count: 800,
             preload_is_playing: false,
+
+            snapshots_list: snapshots,
+            selected_snapshot: selected_snap,
+            snapshot_filename_input: "mon_snapshot".to_string(),
+            api_listener: listener,
         }
     }
 
@@ -448,6 +496,8 @@ impl AppState {
         self.preload_index = 0;
         self.is_in_preload_mode = false;
         self.preload_is_playing = false;
+
+        self.snapshots_list = list_snapshots();
     }
 
     fn record_param_change(&mut self, name: &str, value: f32) {
@@ -1162,22 +1212,54 @@ fn draw_gui(state: &mut AppState) {
                     ui.separator();
                     ui.label("Snapshots (État complet) :");
                     ui.horizontal(|ui| {
+                        ui.label("Nom :");
+                        ui.text_edit_singleline(&mut state.snapshot_filename_input);
+                    });
+                    ui.horizontal(|ui| {
                         if ui.button("💾 Sauvegarder").clicked() {
-                            if let Err(e) = save_snapshot(&state.monde, "snapshot.json") {
+                            let filename = if state.snapshot_filename_input.ends_with(".sed")
+                                || state.snapshot_filename_input.ends_with(".json")
+                            {
+                                state.snapshot_filename_input.clone()
+                            } else {
+                                format!("{}.sed", state.snapshot_filename_input)
+                            };
+                            let path = format!("snapshots/{}", filename);
+                            if let Err(e) = save_snapshot(&state.monde, &path) {
                                 println!("[Erreur] Impossible de sauvegarder le snapshot: {}", e);
                             } else {
-                                println!("[Snapshot] Sauvegardé sous snapshot.json");
-                            }
-                        }
-                        if ui.button("📂 Charger").clicked() {
-                            if let Err(e) = load_snapshot(&mut state.monde, "snapshot.json") {
-                                println!("[Erreur] Impossible de charger le snapshot: {}", e);
-                            } else {
-                                println!("[Snapshot] Chargé depuis snapshot.json");
-                                state.update_stats();
+                                println!("[Snapshot] Sauvegardé sous {}", path);
+                                state.snapshots_list = list_snapshots();
+                                state.selected_snapshot = filename;
                             }
                         }
                     });
+
+                    ui.separator();
+                    if state.snapshots_list.is_empty() {
+                        ui.label("Aucun snapshot dans /snapshots");
+                    } else {
+                        egui::ComboBox::from_label("Choisir Snapshot")
+                            .selected_text(&state.selected_snapshot)
+                            .show_ui(ui, |ui| {
+                                for snap in &state.snapshots_list {
+                                    ui.selectable_value(
+                                        &mut state.selected_snapshot,
+                                        snap.clone(),
+                                        snap,
+                                    );
+                                }
+                            });
+                        if ui.button("📂 Charger Snapshot").clicked() {
+                            let path = format!("snapshots/{}", state.selected_snapshot);
+                            if let Err(e) = load_snapshot(&mut state.monde, &path) {
+                                println!("[Erreur] Impossible de charger le snapshot: {}", e);
+                            } else {
+                                println!("[Snapshot] Chargé: {}", state.selected_snapshot);
+                                state.update_stats();
+                            }
+                        }
+                    }
                 });
 
                 // --- Replay & Logs CSV ---
@@ -1530,6 +1612,229 @@ fn draw_gui(state: &mut AppState) {
     egui_macroquad::draw();
 }
 
+fn poll_api_requests(state: &mut AppState) {
+    let listener = match &state.api_listener {
+        Some(l) => l,
+        None => return,
+    };
+
+    match listener.accept() {
+        Ok((mut stream, _addr)) => {
+            let mut buffer = [0; 8192];
+            match stream.read(&mut buffer) {
+                Ok(bytes_read) if bytes_read > 0 => {
+                    let request_str = String::from_utf8_lossy(&buffer[..bytes_read]);
+
+                    let json_str = if request_str.starts_with("POST") || request_str.starts_with("GET") {
+                        if let Some(pos) = request_str.find("\r\n\r\n") {
+                            &request_str[pos + 4..]
+                        } else {
+                            &request_str
+                        }
+                    } else {
+                        &request_str
+                    };
+
+                    let json_str = json_str.trim();
+                    if json_str.is_empty() {
+                        send_response(&mut stream, serde_json::json!({"error": "Empty request body"}));
+                        return;
+                    }
+
+                    match serde_json::from_str::<serde_json::Value>(json_str) {
+                        Ok(val) => {
+                            let response_val = handle_api_command(state, val);
+                            send_response(&mut stream, response_val);
+                        }
+                        Err(e) => {
+                            send_response(&mut stream, serde_json::json!({
+                                "error": format!("JSON parse error: {}", e),
+                                "received": json_str
+                            }));
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+        Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+            // Pas de connexion entrante cette frame
+        }
+        Err(e) => {
+            println!("[API Erreur] Connection error: {:?}", e);
+        }
+    }
+}
+
+fn send_response(stream: &mut TcpStream, body: serde_json::Value) {
+    let body_str = serde_json::to_string(&body).unwrap_or_else(|_| "{}".to_string());
+    let response = format!(
+        "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nContent-Type: application/json\r\nAccess-Control-Allow-Origin: *\r\nConnection: close\r\n\r\n{}",
+        body_str.len(),
+        body_str
+    );
+    let _ = stream.write_all(response.as_bytes());
+    let _ = stream.flush();
+}
+
+fn handle_api_command(state: &mut AppState, cmd: serde_json::Value) -> serde_json::Value {
+    let command = match cmd.get("cmd").and_then(|v| v.as_str()) {
+        Some(c) => c,
+        None => return serde_json::json!({"error": "Missing 'cmd' field"}),
+    };
+
+    match command {
+        "reset" => {
+            let seed = cmd.get("seed").and_then(|v| v.as_u64()).map(|v| v as u32).unwrap_or(state.seed);
+            let size = cmd.get("size").and_then(|v| v.as_i64()).map(|v| v as i32).unwrap_or(state.world_size);
+            let density = cmd.get("density").and_then(|v| v.as_f64()).map(|v| v as f32).unwrap_or(state.initial_density);
+
+            state.seed = seed;
+            state.world_size = size;
+            state.initial_density = density;
+            state.reset();
+
+            serde_json::json!({
+                "status": "success",
+                "message": "World reset successful",
+                "seed": seed,
+                "size": size,
+                "density": density
+            })
+        }
+        "get_params" => {
+            serde_json::json!({
+                "k_thermo": state.monde.params.k_thermo,
+                "sensibilite_soleil": state.monde.params.sensibilite_soleil,
+                "hauteur_soleil": state.monde.params.hauteur_soleil,
+                "seuil_energie_division": state.monde.params.seuil_energie_division,
+                "cout_mouvement": state.monde.params.cout_mouvement,
+                "facteur_echange_energie": state.monde.params.facteur_echange_energie,
+                "seuil_similarite_r": state.monde.params.seuil_similarite_r,
+                "ticks_neuraux_par_physique": state.monde.params.ticks_neuraux_par_physique,
+                "seuil_fire": state.monde.params.seuil_fire,
+                "cout_spike": state.monde.params.cout_spike,
+                "learn_rate": state.monde.params.learn_rate,
+                "decay_synapse": state.monde.params.decay_synapse,
+                "cycle": state.monde.cycle_actuel
+            })
+        }
+        "set_params" => {
+            if let Some(params) = cmd.get("params").and_then(|p| p.as_object()) {
+                if let Some(v) = params.get("k_thermo").and_then(|x| x.as_f64()) {
+                    state.monde.params.k_thermo = v as f32;
+                }
+                if let Some(v) = params.get("sensibilite_soleil").and_then(|x| x.as_f64()) {
+                    state.monde.params.sensibilite_soleil = v as f32;
+                }
+                if let Some(v) = params.get("hauteur_soleil").and_then(|x| x.as_f64()) {
+                    state.monde.params.hauteur_soleil = v as f32;
+                }
+                if let Some(v) = params.get("seuil_energie_division").and_then(|x| x.as_f64()) {
+                    state.monde.params.seuil_energie_division = v as f32;
+                }
+                if let Some(v) = params.get("cout_mouvement").and_then(|x| x.as_f64()) {
+                    state.monde.params.cout_mouvement = v as f32;
+                }
+                if let Some(v) = params.get("facteur_echange_energie").and_then(|x| x.as_f64()) {
+                    state.monde.params.facteur_echange_energie = v as f32;
+                }
+                if let Some(v) = params.get("seuil_similarite_r").and_then(|x| x.as_f64()) {
+                    state.monde.params.seuil_similarite_r = v as f32;
+                }
+                if let Some(v) = params.get("ticks_neuraux_par_physique").and_then(|x| x.as_u64()) {
+                    state.monde.params.ticks_neuraux_par_physique = v as usize;
+                }
+                if let Some(v) = params.get("seuil_fire").and_then(|x| x.as_f64()) {
+                    state.monde.params.seuil_fire = v as f32;
+                }
+                if let Some(v) = params.get("cout_spike").and_then(|x| x.as_f64()) {
+                    state.monde.params.cout_spike = v as f32;
+                }
+                if let Some(v) = params.get("learn_rate").and_then(|x| x.as_f64()) {
+                    state.monde.params.learn_rate = v as f32;
+                }
+                if let Some(v) = params.get("decay_synapse").and_then(|x| x.as_f64()) {
+                    state.monde.params.decay_synapse = v as f32;
+                }
+                serde_json::json!({"status": "success", "message": "Parameters updated"})
+            } else {
+                serde_json::json!({"error": "Missing 'params' object"})
+            }
+        }
+        "step" => {
+            let cycles = cmd.get("cycles").and_then(|v| v.as_i64()).unwrap_or(1);
+            for _ in 0..cycles {
+                avancer_un_cycle(state);
+            }
+            serde_json::json!({
+                "status": "success",
+                "current_cycle": state.monde.cycle_actuel,
+                "cells_alive": state.monde.get_nombre_cellules_vivantes()
+            })
+        }
+        "get_entities" => {
+            let entities = state.monde.segmenter_entites();
+            serde_json::json!({
+                "status": "success",
+                "cycle": state.monde.cycle_actuel,
+                "entities": entities
+            })
+        }
+        "save_snapshot" => {
+            let path_param = cmd.get("path").and_then(|v| v.as_str()).unwrap_or("snapshot.json");
+            let full_path = if path_param.starts_with("snapshots/") {
+                path_param.to_string()
+            } else {
+                format!("snapshots/{}", path_param)
+            };
+            match save_snapshot(&state.monde, &full_path) {
+                Ok(_) => {
+                    state.snapshots_list = list_snapshots();
+                    serde_json::json!({
+                        "status": "success",
+                        "message": format!("Snapshot saved successfully to {}", full_path),
+                        "path": full_path
+                    })
+                }
+                Err(e) => {
+                    serde_json::json!({
+                        "status": "error",
+                        "message": format!("Failed to save snapshot: {}", e)
+                    })
+                }
+            }
+        }
+        "load_snapshot" => {
+            let path_param = cmd.get("path").and_then(|v| v.as_str()).unwrap_or("snapshot.json");
+            let full_path = if path_param.starts_with("snapshots/") {
+                path_param.to_string()
+            } else {
+                format!("snapshots/{}", path_param)
+            };
+            match load_snapshot(&mut state.monde, &full_path) {
+                Ok(_) => {
+                    state.update_stats();
+                    serde_json::json!({
+                        "status": "success",
+                        "message": format!("Snapshot loaded successfully from {}", full_path),
+                        "path": full_path
+                    })
+                }
+                Err(e) => {
+                    serde_json::json!({
+                        "status": "error",
+                        "message": format!("Failed to load snapshot: {}", e)
+                    })
+                }
+            }
+        }
+        _ => {
+            serde_json::json!({"error": format!("Unknown command: '{}'", command)})
+        }
+    }
+}
+
 // ===========================================================================
 // Gestion de la caméra orbitale et avancement du temps
 // ===========================================================================
@@ -1791,6 +2096,8 @@ async fn main() {
 
     loop {
         state.last_fps = get_fps() as f32;
+
+        poll_api_requests(&mut state);
 
         handle_camera_input(&mut state);
 
