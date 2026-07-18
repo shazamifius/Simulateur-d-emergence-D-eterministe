@@ -380,6 +380,10 @@ struct AppState {
     selected_snapshot: String,
     snapshot_filename_input: String,
     api_listener: Option<TcpListener>,
+
+    // Performance & Vitesse adaptative
+    cycle_durations: Vec<f32>,
+    adaptive_speed: bool,
 }
 
 #[derive(PartialEq, Clone, Copy)]
@@ -471,6 +475,9 @@ impl AppState {
             selected_snapshot: selected_snap,
             snapshot_filename_input: "mon_snapshot".to_string(),
             api_listener: listener,
+
+            cycle_durations: Vec::new(),
+            adaptive_speed: true,
         }
     }
 
@@ -498,6 +505,7 @@ impl AppState {
         self.preload_is_playing = false;
 
         self.snapshots_list = list_snapshots();
+        self.cycle_durations.clear();
     }
 
     fn record_param_change(&mut self, name: &str, value: f32) {
@@ -1013,7 +1021,12 @@ fn draw_gui(state: &mut AppState) {
                         }
                     });
 
-                    ui.add(egui::Slider::new(&mut state.speed, 0.1..=30.0).text("Vitesse (Hz)"));
+                    ui.checkbox(&mut state.adaptive_speed, "⚡ Vitesse auto-adaptative (anti-lag)");
+                    if state.adaptive_speed {
+                        ui.label(format!("Vitesse cible : {:.1} Hz", state.speed));
+                    } else {
+                        ui.add(egui::Slider::new(&mut state.speed, 0.1..=30.0).text("Vitesse (Hz)"));
+                    }
                     ui.label(format!("Cycle: {}", state.monde.cycle_actuel));
                     ui.label(format!("FPS: {:.0}", state.last_fps));
 
@@ -1887,7 +1900,7 @@ fn handle_camera_input(state: &mut AppState) {
         let mouse_pos = Vec2::new(mouse_position().0, mouse_position().1);
         if state.mouse_captured {
             let delta = mouse_pos - state.last_mouse;
-            state.cam_yaw = (state.cam_yaw + delta.x * 0.3) % 360.0;
+            state.cam_yaw = (state.cam_yaw - delta.x * 0.3) % 360.0;
             state.cam_pitch = (state.cam_pitch + delta.y * 0.3).clamp(-89.0, 89.0);
         }
         state.last_mouse = mouse_pos;
@@ -2121,10 +2134,41 @@ async fn main() {
             }
         } else if state.is_running {
             state.accum += get_frame_time();
-            let interval = 1.0 / state.speed;
-            while state.accum >= interval {
+
+            let current_speed = if state.adaptive_speed {
+                let avg_duration = if state.cycle_durations.is_empty() {
+                    0.01
+                } else {
+                    let sum: f32 = state.cycle_durations.iter().sum();
+                    sum / state.cycle_durations.len() as f32
+                };
+                let target_speed = (0.75 / avg_duration).clamp(0.5, 30.0);
+                state.speed = state.speed * 0.95 + target_speed * 0.05;
+                state.speed
+            } else {
+                state.speed
+            };
+
+            let interval = 1.0 / current_speed;
+            let mut steps_run = 0;
+            let max_steps_per_frame = 2;
+
+            while state.accum >= interval && steps_run < max_steps_per_frame {
+                let start = std::time::Instant::now();
                 avancer_un_cycle(&mut state);
+                let elapsed = start.elapsed().as_secs_f32();
+
+                state.cycle_durations.push(elapsed);
+                if state.cycle_durations.len() > 10 {
+                    state.cycle_durations.remove(0);
+                }
+
                 state.accum -= interval;
+                steps_run += 1;
+            }
+
+            if state.accum >= interval {
+                state.accum = 0.0;
             }
         }
 

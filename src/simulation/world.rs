@@ -834,6 +834,7 @@ impl MondeSED {
             .chunks
             .par_iter_mut()
             .for_each(|(&_key, chunk)| {
+                chunk.update_active_flags();
                 if !chunk.has_alive_cells {
                     return;
                 }
