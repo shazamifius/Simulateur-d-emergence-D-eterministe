@@ -1826,7 +1826,7 @@ fn poll_api_requests(state: &mut AppState) {
 
     match listener.accept() {
         Ok((mut stream, _addr)) => {
-            let _ = stream.set_read_timeout(Some(std::time::Duration::from_millis(100)));
+            let _ = stream.set_read_timeout(Some(std::time::Duration::from_millis(5000)));
             let mut buffer = [0; 8192];
             match stream.read(&mut buffer) {
                 Ok(bytes_read) if bytes_read > 0 => {
