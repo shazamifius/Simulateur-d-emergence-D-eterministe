@@ -397,9 +397,13 @@ def main():
         # Appliquer les paramètres
         send_command("set_params", {"params": current_params})
         
-        # --- Phase 1 : Simulation initiale (5000 cycles) ---
+        # --- Phase 1 : Simulation initiale (5000 cycles, par blocs de 100 pour garder le GUI fluide) ---
         print(f"   ⌛ Phase 1 : 5000 premiers cycles...")
-        sim_res = send_command("step", {"cycles": 5000})
+        sim_res = None
+        for _ in range(50):
+            sim_res = send_command("step", {"cycles": 100})
+            if not sim_res:
+                break
         if not sim_res:
             print("   ⚠️ Simulation échouée, passage au run suivant...")
             continue
@@ -523,7 +527,8 @@ def main():
     print(f"\n💾 [Sauvegarde] Recréation et sauvegarde du meilleur spécimen...")
     send_command("reset", {"seed": best_run["seed"], "size": 24, "density": 0.12})
     send_command("set_params", {"params": best_run["params"]})
-    send_command("step", {"cycles": 5100})
+    for _ in range(51):
+        send_command("step", {"cycles": 100})
 
     filename = f"meilleur_specimen_run_{best_run['run']}_score_{best_run['score']}.sed"
     res_save = send_command("save_snapshot", {"path": filename})
