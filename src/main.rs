@@ -1974,6 +1974,7 @@ fn handle_api_command(state: &mut AppState, cmd: serde_json::Value) -> serde_jso
             for _ in 0..cycles {
                 avancer_un_cycle(state);
             }
+            state.update_alive_cells_cache();
             serde_json::json!({
                 "status": "success",
                 "current_cycle": state.monde.cycle_actuel,
@@ -2052,7 +2053,6 @@ fn avancer_un_cycle(state: &mut AppState) {
     state.monde.avancer_temps();
     state.update_stats();
     handle_csv_logging(state);
-    state.update_alive_cells_cache();
 }
 
 fn lancer_prechargement(state: &mut AppState) {
@@ -2433,6 +2433,10 @@ async fn main() {
 
                 state.accum -= interval;
                 steps_run += 1;
+            }
+
+            if steps_run > 0 {
+                state.update_alive_cells_cache();
             }
 
             if state.accum >= interval {
