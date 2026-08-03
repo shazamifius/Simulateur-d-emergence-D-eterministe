@@ -24,3 +24,8 @@ metrics_log.csv
 test_replay.json
 snapshot.json
 *.log
+
+# Sorties de simulation (donnees generees, pas du code)
+/headless_final.json
+/headless_log.csv
+/snapshots
