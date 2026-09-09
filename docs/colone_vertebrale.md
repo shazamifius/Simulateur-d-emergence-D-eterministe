@@ -150,9 +150,8 @@ Ces règles sont la garantie que l'univers du SED respecte ses propres lois.
 * **Bornage Invariant :** Toutes les variables $C, R, S_c, P, W$ doivent être strictement maintenues dans leurs domaines après toute opération.
 * **Politique NaN :** Si une variable ($E, D, C, P...$) devient `NaN` ou `Inf`, la cellule est **supprimée immédiatement** pour protéger la stabilité de la simulation.
 * **Conservation de l'Énergie Totale :** Dans un système fermé (sans sources/puits externes), l'énergie totale du monde suit l'équation de bilan exacte :
-$$
-\sum E_{t+1} = \sum E_{t} - \sum k_{\text{thermo}} - \sum C_{\text{spike}} - \sum_{\text{succès}} C_{\text{mvt}}
-$$
+
+$$\sum E_{t+1} = \sum E_{t} - \sum k_{\text{thermo}} - \sum C_{\text{spike}} - \sum C_{\text{mvt}}$$
 
 Ce système est le modèle **déterministe, cognitif et thermodynamiquement cohérent** conçu pour l'émergence.
 
